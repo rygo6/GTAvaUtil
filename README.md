@@ -1,3 +1,5 @@
+The official root repository for this project is here https://github.com/rygo6/GTAvaUtil.git.
+
 # GeoTetra AvaUtil
 
 This is essentially a throw bag of utilities for VRChat avatars that I either do not see existing elsewhere, or the other freely available options do it incorrectly.
