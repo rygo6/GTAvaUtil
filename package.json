@@ -1,0 +1,15 @@
+{
+  "name": "com.geotetra.gtavautil",
+  "displayName":"GeoTetra AvaUtil",
+  "version": "1.0.0",
+  "unity": "2019.4",
+  "keywords": ["editor", "vrchat"],
+  "description": "Throwbag of utilities for VRChat Avatars.",
+  "dependencies": {
+    "com.unity.editorcoroutines": "1.0.0"
+  },
+  "author": {
+    "name": "Ryan Goodrich",
+    "url": "https://github.com/rygo6"
+  }
+}
