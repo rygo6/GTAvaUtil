@@ -2,6 +2,8 @@
 
 This is essentially a throw bag of utilities for VRChat avatars that I either do not see existing elsewhere, or the other freely available options do it incorrectly.
 
+Join the GeoTetra Discord for support or suggestions about more avatar utilities to be added: https://discord.gg/nbzqtaVP9J
+
 ## Installation
 
 1. Open the Unity Package Manager under `Window > Package Manager`.
