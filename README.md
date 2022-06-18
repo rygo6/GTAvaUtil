@@ -1,4 +1,4 @@
-The official root repository for this project is here https://github.com/rygo6/GTAvaUtil.git.
+The official root repository for this project is here https://github.com/rygo6/GTAvaUtil.
 
 # GeoTetra AvaUtil
 
