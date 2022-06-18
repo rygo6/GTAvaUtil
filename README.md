@@ -34,7 +34,7 @@ For this to work your clothing items skeleton and your avatars skeleton must hav
 1. First line up your clothing item to your avatar. 
 2. Next, select the SkinnedMeshRender you want to transfer bone data from, this is probably your avatars SkinnedMeshRenderer.
 3. Next hold down ctrl and select the SkinnedMeshRenderer you want to transfer the bone data onto, this is probably your clothing items SkinnedMeshRender.
-4. Now click `Tools > GeoTetra > GTAvaUtil > Transfer SkinnedMeshRenderer Bones...`. If it completes without errors then it worked and should have made a new GameObject next to your avatars SkinnedMeshRenderer with your newly attached clothing item. If you rotate the leg or spine your avatars skeleton, your clothing item should not be properly attached.
+4. Now click `Tools > GeoTetra > GTAvaUtil > Transfer SkinnedMeshRenderer Bones...`. If it completes without errors then it worked and should have made a new GameObject next to your avatars SkinnedMeshRenderer with your newly attached clothing item. If you rotate the leg or spine of your avatars skeleton, your clothing item should now be properly attached.
 
 ### 2. Bake SkinnedMeshRenderer...
 
