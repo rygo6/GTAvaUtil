@@ -27,7 +27,7 @@ This utility will attach the clothing item to the actual skeleton of the avatar 
 
 It also calculates new bindposes in case your avatars bones and your clothing items bones are not in the exact same position.
 
-For this to work your clothing item's skeleton and your avatar's skeleton must have the same hierarchy and naming. It is not necessary that the skeletons exactly match, but every bone present in your clothing items skeleton must also be present in your avatars skeleton. 
+For this to work your clothing items skeleton and your avatars skeleton must have the same hierarchy and naming. It is not necessary that the skeletons exactly match, but every bone present in your clothing items skeleton must also be present in your avatars skeleton. 
 
 *Nearly every clothing package for a particular avatar I have bought off of gumroad has been set up like this, so I assume this should just work for most avatar clothing packages.*
 
