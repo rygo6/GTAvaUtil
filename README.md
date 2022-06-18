@@ -1,6 +1,13 @@
-﻿# GeoTetra AvaUtil
+# GeoTetra AvaUtil
 
 This is essentially a throw bag of utilities for VRChat avatars that I either do not see existing elsewhere, or the other freely available options do it incorrectly.
+
+## Installation
+
+1. Open the Unity Package Manager under `Window > Package Manager`.
+2. Click the + in the upper left of package manager window.
+3. Select 'Add package from git url...'.
+4. Paste `https://github.com/rygo6/GTAvaUtil.git` into the dialogue and clikc 'Add'.
 
 ## Usage
 
