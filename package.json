@@ -1,6 +1,6 @@
 {
   "name": "com.geotetra.gtavautil",
-  "displayName":"GeoTetra AvaUtil",
+  "displayName":"GTAvaUtil",
   "version": "1.0.0",
   "unity": "2019.4",
   "keywords": ["editor", "vrchat"],
@@ -9,7 +9,7 @@
     "com.unity.editorcoroutines": "1.0.0"
   },
   "author": {
-    "name": "Ryan Goodrich",
+    "name": "GeoTetra",
     "url": "https://github.com/rygo6"
   }
 }
