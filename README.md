@@ -11,7 +11,7 @@ Join the GeoTetra Discord for support or suggestions about more avatar utilities
 1. Open the Unity Package Manager under `Window > Package Manager`.
 2. Click the + in the upper left of package manager window.
 3. Select 'Add package from git url...'.
-4. Paste `https://github.com/rygo6/GTAvaUtil.git` into the dialogue and clikc 'Add'.
+4. Paste `https://github.com/rygo6/GTAvaUtil.git` into the dialogue and click 'Add'.
 
 ## Usage
 
