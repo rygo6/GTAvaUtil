@@ -105,7 +105,7 @@ namespace GeoTetra.GTAvaUtil
             AssetDatabase.CreateAsset(bakedMesh, encryptedMeshPath);
             AssetDatabase.SaveAssets();
 
-            GameObject gameObject = new GameObject($"{sourceRenderer.sharedMesh.name}BakedSkinnedMesh");
+            GameObject gameObject = new GameObject(Path.GetFileNameWithoutExtension(encryptedMeshPath));
             gameObject.AddComponent<MeshFilter>().sharedMesh = bakedMesh;
             gameObject.AddComponent<MeshRenderer>().sharedMaterials = sourceRenderer.sharedMaterials;
             gameObject.transform.position = sourceRenderer.transform.position;
@@ -140,7 +140,7 @@ namespace GeoTetra.GTAvaUtil
             Mesh newDestinationMesh = MonoBehaviour.Instantiate(destinationRenderer.sharedMesh);
             newDestinationMesh.SetColors(sourceFilter.sharedMesh.colors);
             string oldMeshPath = AssetDatabase.GetAssetPath(destinationRenderer.sharedMesh);
-            var encryptedMeshPath = GetModifiedMeshPath(oldMeshPath, sourceFilter.sharedMesh.name, "TransferredVertexColors");
+            var encryptedMeshPath = GetModifiedMeshPath(oldMeshPath, sourceFilter.sharedMesh.name,"TransferredVertexColors");
             AssetDatabase.CreateAsset(newDestinationMesh, encryptedMeshPath);
             AssetDatabase.SaveAssets();
             
@@ -185,9 +185,14 @@ namespace GeoTetra.GTAvaUtil
             renderer.localBounds = bounds;
         }
 
-        static string GetModifiedMeshPath(string path,string meshName, string appendText)
+        static string GetModifiedMeshPath(string path, string meshName, string appendText)
         {
-            return Path.Combine(Path.GetDirectoryName(path), Path.GetFileNameWithoutExtension(path)) + $"_{meshName}_{appendText}.asset";
+            // this little just of splits and _'s is to keep it from continually appending text to the name
+            string filename = Path.GetFileNameWithoutExtension(path);
+            string[] splitFileName = filename.Split('_');
+            string[] splitMeshName = meshName.Split('_');
+            string finalMeshName = splitMeshName.Length == 1 ? splitMeshName[0] : splitMeshName[1];
+            return $"{Path.Combine(Path.GetDirectoryName(path), splitFileName[0])}_{finalMeshName}_{appendText}.asset";
         }
     }
 }
