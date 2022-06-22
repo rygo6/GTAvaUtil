@@ -6,6 +6,7 @@ using BestHTTP.SecureProtocol.Org.BouncyCastle.Asn1;
 using Unity.EditorCoroutines.Editor;
 using UnityEditor;
 using UnityEngine;
+using PackageInfo = UnityEditor.PackageManager.PackageInfo;
 
 namespace GeoTetra.GTAvaUtil
 {
