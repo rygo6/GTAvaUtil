@@ -1,4 +1,5 @@
 ﻿using System.Collections;
+using System.Linq;
 using System.Collections.Generic;
 using System.IO;
 using BestHTTP.SecureProtocol.Org.BouncyCastle.Asn1;
@@ -10,6 +11,8 @@ namespace GeoTetra.GTAvaUtil
 {
     public class MenuUtilites
     {
+        const string okText = "Ok";
+        
         [MenuItem("Tools/GeoTetra/GTAvaUtil/Transfer SkinnedMeshRenderer Bones...", false)]
         static void SetBonesTo(MenuCommand command)
         {
