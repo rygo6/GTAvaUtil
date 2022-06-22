@@ -173,6 +173,23 @@ namespace GeoTetra.GTAvaUtil
             
             EditorCoroutineUtility.StartCoroutine(RecalculateSkinnedMeshBoundsCoroutine(renderer), renderer);
         }
+        
+        [MenuItem("Tools/GeoTetra/GTAvaUtil/Check for Update...", false)]
+        static void CheckForUpdate()
+        {
+            var list = UnityEditor.PackageManager.Client.List();
+            while (!list.IsCompleted)
+            { }
+            PackageInfo package = list.Result.FirstOrDefault(q => q.name == "com.geotetra.gtavautil");
+            if (package == null)
+            {
+                EditorUtility.DisplayDialog("Not installed via UPM!",
+                    "This upgrade option only works if you installed via UPM. Go to AvaCrypt github and reinstall via UPM if you wish to use this",
+                    okText);
+            }
+
+            UnityEditor.PackageManager.Client.Add("https://github.com/rygo6/GTAvaUtil.git");
+        }
 
         static IEnumerator RecalculateSkinnedMeshBoundsCoroutine(SkinnedMeshRenderer renderer)
         {
