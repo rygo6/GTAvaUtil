@@ -2,7 +2,6 @@
 using System.Linq;
 using System.Collections.Generic;
 using System.IO;
-using BestHTTP.SecureProtocol.Org.BouncyCastle.Asn1;
 using Unity.EditorCoroutines.Editor;
 using UnityEditor;
 using UnityEngine;
@@ -151,31 +150,107 @@ namespace GeoTetra.GTAvaUtil
             Undo.RecordObject(destinationRenderer, "Transfer Mesh Colors...");
             destinationRenderer.sharedMesh = newDestinationMesh;
         }
-        
+
         [MenuItem("Tools/GeoTetra/GTAvaUtil/Recalculate SkinnedMeshRenderer Bounds...", false)]
         static void RecalculateSkinnedMeshBounds(MenuCommand command)
         {
             void ErrorDialogue()
             {
                 EditorUtility.DisplayDialog("Insufficient Selection!",
-                    "Must Select SkinnedMeshRenderer.",
+                    "Must Select SkinnedMeshRenderers.",
                     "Ok");
             }
             
-            if (Selection.objects.Length != 1)
+            if (Selection.objects.Length == 0)
             {
                 ErrorDialogue();
                 return;
             }
             
-            SkinnedMeshRenderer renderer = (Selection.objects[0] as GameObject).GetComponent<SkinnedMeshRenderer>();
-            if (renderer == null)
+            foreach (var selectedObject in Selection.objects)
+            {
+                if (selectedObject is GameObject selectedGameObject)
+                {
+                    SkinnedMeshRenderer renderer = selectedGameObject.GetComponent<SkinnedMeshRenderer>();
+                    if (renderer != null)
+                    {
+                        EditorCoroutineUtility.StartCoroutine(RecalculateSkinnedMeshBoundsCoroutine(renderer), renderer);
+                    }
+                }
+            }
+        }
+        
+        [MenuItem("Tools/GeoTetra/GTAvaUtil/Add Probe Anchor From Averaged Mesh Positions...", false)]
+        static void AddProbeAtAveragedMeshPositions(MenuCommand command)
+        {
+            void ErrorDialogue()
+            {
+                EditorUtility.DisplayDialog("Insufficient Selection!",
+                    "Must select multiple SkinnedMeshRenderer's.",
+                    "Ok");
+            }
+            
+            if (Selection.objects.Length < 2)
             {
                 ErrorDialogue();
                 return;
             }
+
+            List<SkinnedMeshRenderer> skinnedMeshRenderers = new List<SkinnedMeshRenderer>();
+            List<MeshRenderer> meshRenderers = new List<MeshRenderer>();
+            foreach (var selectedObject in Selection.objects)
+            {
+                if (selectedObject is GameObject selectedGameObject)
+                {
+                    SkinnedMeshRenderer skinnedMeshRenderer = selectedGameObject.GetComponent<SkinnedMeshRenderer>();
+                    if (skinnedMeshRenderer != null)
+                    {
+                        skinnedMeshRenderers.Add(skinnedMeshRenderer);
+                        continue;
+                    }
+                    
+                    MeshRenderer renderer = selectedGameObject.GetComponent<MeshRenderer>();
+                    if (renderer != null)
+                    {
+                        meshRenderers.Add(renderer);
+                    }
+                }
+            }
+
+            if (skinnedMeshRenderers.Count + meshRenderers.Count < 2)
+            {
+                ErrorDialogue();
+                return;
+            }
+
+            Renderer firstRender;
+            if (skinnedMeshRenderers.Count > 0)
+                firstRender = skinnedMeshRenderers[0];
+            else
+                firstRender = meshRenderers[0];
             
-            EditorCoroutineUtility.StartCoroutine(RecalculateSkinnedMeshBoundsCoroutine(renderer), renderer);
+            Bounds worldBounds = new Bounds(firstRender.transform.position, Vector3.zero);
+            foreach (var renderer in skinnedMeshRenderers)
+            {
+                worldBounds.Encapsulate(renderer.bounds);
+            }
+            foreach (var renderer in meshRenderers)
+            {
+                worldBounds.Encapsulate(renderer.bounds);
+            }
+            
+            GameObject anchorGameObject = new GameObject("ProbeAnchor");
+            anchorGameObject.transform.SetParent(firstRender.transform.root);
+            anchorGameObject.transform.position = worldBounds.center;
+            
+            foreach (var renderer in skinnedMeshRenderers)
+            {
+                renderer.probeAnchor = anchorGameObject.transform;
+            }
+            foreach (var renderer in meshRenderers)
+            {
+                renderer.probeAnchor = anchorGameObject.transform;
+            }
         }
         
         [MenuItem("Tools/GeoTetra/GTAvaUtil/Check for Update...", false)]
@@ -205,7 +280,7 @@ namespace GeoTetra.GTAvaUtil
             yield return null;
             renderer.localBounds = bounds;
         }
-
+        
         static string GetModifiedMeshPath(string path, string meshName, string appendText)
         {
             // this little just of splits and _'s is to keep it from continually appending text to the name

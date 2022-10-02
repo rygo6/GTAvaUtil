@@ -53,7 +53,15 @@ This will let you transfer the vertex colors from a static mesh onto a SkinnedMe
 
 ### 4. Recalculate SkinnedMeshRenderer Bounds...
 
-This will automatically recalculate the bounds of a SkinnedMeshRenderer.
+This will automatically recalculate the bounds of a selected set of SkinnedMeshRenderers.
 
-1. Select SkinnedMeshRenderer.
+1. Select any number of SkinnedMeshRenderers.
 2. Click `Tools > GeoTetra > GTAvaUtil > Recalculate SkinnedMeshRenderer Bounds...`.
+
+### 5. Add Probe Anchor From Averaged Mesh Positions...
+
+This will automatically place a light probe anchor at the average position between all selected meshes.
+
+1. Select all the meshes of a single avatar.
+2. Click `Tools > GeoTetra > GTAvaUtil > Add Probe Anchor From Averaged Mesh Positions...`.
+3. This will make a 'ProbeAnchor' GameObject hooked up to all the meshes. You can better position this afterwards if you wish.
