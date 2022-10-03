@@ -65,3 +65,11 @@ This will automatically place a light probe anchor at the average position betwe
 1. Select all the meshes of a single avatar.
 2. Click `Tools > GeoTetra > GTAvaUtil > Add Probe Anchor From Averaged Mesh Positions...`.
 3. This will make a 'ProbeAnchor' GameObject hooked up to all the meshes. You can better position this afterwards if you wish.
+
+### 6. Average Vertex Colors On MeshFilter...
+
+This average the vertex colors on a selected meshfilter. Currently doesn't save it, use TransferColors to transfer to some saved mesh.
+
+1. Select the MeshFilter you want to average the vertex colors on.
+2. Click `Tools > GeoTetra > GTAvaUtil > Average Vertex Colors On MeshFilter...`.
+3. Vertex colors should appear smoothed in about a second.

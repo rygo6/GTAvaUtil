@@ -253,6 +253,51 @@ namespace GeoTetra.GTAvaUtil
             }
         }
         
+        [MenuItem("Tools/GeoTetra/GTAvaUtil/Average Vertex Colors On MeshFilter...", false)]
+        static void AverageVertexColorsOnMeshes(MenuCommand command)
+        {
+            void ErrorDialogue()
+            {
+                EditorUtility.DisplayDialog("Insufficient Selection!",
+                    "Must Select GameObject with MeshFilter.",
+                    "Ok");
+            }
+            
+            if (Selection.objects.Length == 0)
+            {
+                ErrorDialogue();
+                return;
+            }
+
+            MeshFilter sourceFilter = (Selection.objects[0] as GameObject).GetComponent<MeshFilter>();
+            if (sourceFilter == null)
+            {
+                ErrorDialogue();
+                return;
+            }
+            
+            EditorCoroutineUtility.StartCoroutine(AverageVertexColorsOnMeshesCoroutine(sourceFilter), sourceFilter);
+        }
+
+        static IEnumerator AverageVertexColorsOnMeshesCoroutine(MeshFilter meshFilter)
+        {
+            EditorUtility.DisplayProgressBar("Averaging Vertex Colors..", "", 0);
+            
+            VertexColorSmoother smoother = new VertexColorSmoother(meshFilter);
+            yield return smoother.RunCoroutine();
+            var newColors = smoother.OutputColors;
+            
+            meshFilter.sharedMesh.colors = newColors;
+            meshFilter.sharedMesh.UploadMeshData(false);
+
+            smoother.Dispose();
+            
+            Debug.Log("Mesh colors averaged! This does not save the mesh. Right now I use this before using TransferColors onto the mesh that does save. Might change this in the future.");
+            
+            EditorUtility.ClearProgressBar();
+        }
+        
+        
         [MenuItem("Tools/GeoTetra/GTAvaUtil/Check for Update...", false)]
         static void CheckForUpdate()
         {
