@@ -77,45 +77,58 @@ namespace GeoTetra.GTAvaUtil
             newDestinationRenderer.transform.SetParent(sourceRenderer.transform.parent, false);
             EditorCoroutineUtility.StartCoroutine(RecalculateSkinnedMeshBoundsCoroutine(newDestinationRenderer), newDestinationRenderer);
         }
-        
+
         [MenuItem("Tools/GeoTetra/GTAvaUtil/Bake SkinnedMeshRenderer...", false)]
         static void BakeSkinnedMesh(MenuCommand command)
         {
             void ErrorDialogue()
             {
                 EditorUtility.DisplayDialog("Insufficient Selection!",
-                    "Select SkinnedMeshRender to bake.",
+                    "Select SkinnedMeshRenders to bake.",
                     "Ok");
             }
-            
-            if (Selection.objects.Length != 1)
+
+            if (Selection.objects.Length == 0)
             {
                 ErrorDialogue();
                 return;
             }
 
-            SkinnedMeshRenderer sourceRenderer = (Selection.objects[0] as GameObject).GetComponent<SkinnedMeshRenderer>();
-            if (sourceRenderer == null)
+            int processedCount = 0;
+            foreach (var selectedObject in Selection.objects)
+            {
+                if (selectedObject is GameObject selectedGameObject)
+                {
+                    SkinnedMeshRenderer sourceRenderer = selectedGameObject.GetComponent<SkinnedMeshRenderer>();
+                    if (sourceRenderer == null)
+                    {
+                        continue;
+                    }
+
+                    Mesh bakedMesh = new Mesh();
+                    sourceRenderer.BakeMesh(bakedMesh);
+                    string oldMeshPath = AssetDatabase.GetAssetPath(sourceRenderer.sharedMesh);
+                    var encryptedMeshPath = GetModifiedMeshPath(oldMeshPath, sourceRenderer.sharedMesh.name, "BakedSkinnedMesh");
+                    AssetDatabase.CreateAsset(bakedMesh, encryptedMeshPath);
+                    AssetDatabase.SaveAssets();
+
+                    GameObject gameObject = new GameObject(Path.GetFileNameWithoutExtension(encryptedMeshPath));
+                    gameObject.AddComponent<MeshFilter>().sharedMesh = bakedMesh;
+                    gameObject.AddComponent<MeshRenderer>().sharedMaterials = sourceRenderer.sharedMaterials;
+                    gameObject.transform.position = sourceRenderer.transform.position;
+                    gameObject.transform.rotation = sourceRenderer.transform.rotation;
+                    Undo.RegisterCreatedObjectUndo(gameObject, "Baked SkinnedMeshRenderer");
+
+                    processedCount++;
+                }
+            }
+
+            if (processedCount == 0)
             {
                 ErrorDialogue();
-                return;
             }
-            
-            Mesh bakedMesh = new Mesh();
-            sourceRenderer.BakeMesh(bakedMesh);
-            string oldMeshPath = AssetDatabase.GetAssetPath(sourceRenderer.sharedMesh);
-            var encryptedMeshPath = GetModifiedMeshPath(oldMeshPath, sourceRenderer.sharedMesh.name, "BakedSkinnedMesh");
-            AssetDatabase.CreateAsset(bakedMesh, encryptedMeshPath);
-            AssetDatabase.SaveAssets();
-
-            GameObject gameObject = new GameObject(Path.GetFileNameWithoutExtension(encryptedMeshPath));
-            gameObject.AddComponent<MeshFilter>().sharedMesh = bakedMesh;
-            gameObject.AddComponent<MeshRenderer>().sharedMaterials = sourceRenderer.sharedMaterials;
-            gameObject.transform.position = sourceRenderer.transform.position;
-            gameObject.transform.rotation = sourceRenderer.transform.rotation;
-            Undo.RegisterCreatedObjectUndo(gameObject, "Baked SkinnedMeshRenderer");
         }
-        
+
         [MenuItem("Tools/GeoTetra/GTAvaUtil/Transfer Mesh Colors...", false)]
         static void TransferColors(MenuCommand command)
         {
@@ -269,35 +282,51 @@ namespace GeoTetra.GTAvaUtil
                 return;
             }
 
-            MeshFilter sourceFilter = (Selection.objects[0] as GameObject).GetComponent<MeshFilter>();
-            if (sourceFilter == null)
+            List<MeshFilter> filters = new List<MeshFilter>();
+            
+            foreach (var selectedObject in Selection.objects)
+            {
+                if (selectedObject is GameObject selectedGameObject)
+                {
+                    MeshFilter filter = selectedGameObject.GetComponent<MeshFilter>();
+                    if (filter == null)
+                    {
+                        continue;
+                    }
+                    
+                    filters.Add(filter);
+                }
+            }
+
+            if (filters.Count == 0)
             {
                 ErrorDialogue();
-                return;
             }
             
-            EditorCoroutineUtility.StartCoroutine(AverageVertexColorsOnMeshesCoroutine(sourceFilter), sourceFilter);
+            EditorCoroutineUtility.StartCoroutine(AverageVertexColorsOnMeshesCoroutine(filters), filters[0]);
         }
 
-        static IEnumerator AverageVertexColorsOnMeshesCoroutine(MeshFilter meshFilter)
+        static IEnumerator AverageVertexColorsOnMeshesCoroutine(List<MeshFilter> filters)
         {
-            EditorUtility.DisplayProgressBar("Averaging Vertex Colors..", "", 0);
+            foreach (var meshFilter in filters)
+            {
+                EditorUtility.DisplayProgressBar("Averaging Vertex Colors..", "", 0);
             
-            VertexColorSmoother smoother = new VertexColorSmoother(meshFilter);
-            yield return smoother.RunCoroutine();
-            var newColors = smoother.OutputColors;
-            
-            meshFilter.sharedMesh.colors = newColors;
-            meshFilter.sharedMesh.UploadMeshData(false);
+                VertexColorSmoother smoother = new VertexColorSmoother(meshFilter);
+                yield return smoother.RunCoroutine();
+                var newColors = smoother.OutputColors;
+                
+                meshFilter.sharedMesh.colors = newColors;
+                meshFilter.sharedMesh.UploadMeshData(false);
 
-            smoother.Dispose();
-            
-            Debug.Log("Mesh colors averaged! This does not save the mesh. Right now I use this before using TransferColors onto the mesh that does save. Might change this in the future.");
-            
-            EditorUtility.ClearProgressBar();
+                smoother.Dispose();
+                
+                Debug.Log($"Mesh colors averaged on {meshFilter}! This does not save the mesh. Right now I use this before using TransferColors onto the mesh that does save. Might change this in the future.");
+                
+                EditorUtility.ClearProgressBar();
+            }
         }
-        
-        
+
         [MenuItem("Tools/GeoTetra/GTAvaUtil/Check for Update...", false)]
         static void CheckForUpdate()
         {

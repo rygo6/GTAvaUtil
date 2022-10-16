@@ -17,8 +17,6 @@ namespace GeoTetra.GTAvaUtil
 
         readonly MeshFilter m_MeshFilter;
 
-        const float m_VertexSearchDistance = 0.0000001f;
-
         Mesh m_Mesh;
         NativeArray<Vector3> m_Vertices;
         NativeMultiHashMap<int, int> m_OverlappingVertIndices;
@@ -78,7 +76,8 @@ namespace GeoTetra.GTAvaUtil
             m_WriteColors = new NativeHashMap<int, Color>(m_Mesh.vertexCount, Allocator.Persistent);
             int triIndexCount = m_Mesh.triangles.Length;
 
-            m_OverlappingVertIndices = new NativeMultiHashMap<int, int>(triIndexCount, Allocator.Persistent);
+            m_OverlappingVertIndices = new NativeMultiHashMap<int, int>(m_Mesh.vertexCount, Allocator.Persistent);
+            Debug.Log("Created m_OverlappingVertIndices " + m_OverlappingVertIndices.Capacity);
             m_VertexTriangles = new NativeMultiHashMap<int, int>(triIndexCount, Allocator.Persistent);
             m_VertexSubMeshes = new NativeHashMap<int, int>(m_Mesh.vertexCount, Allocator.Persistent);
             m_SubMeshes = new NativeArray<SubMesh>(m_Mesh.subMeshCount, Allocator.Persistent);
@@ -224,7 +223,7 @@ namespace GeoTetra.GTAvaUtil
         {
             m_CalculateOverlappingVertsJob = new CalculateOverlappingVertsJob
             {
-                SearchDistance = m_VertexSearchDistance,
+                SearchDistance = float.Epsilon,
                 Vertices = m_Vertices,
                 OverlappingVertIndices = m_OverlappingVertIndices.AsParallelWriter()
             };
@@ -239,11 +238,9 @@ namespace GeoTetra.GTAvaUtil
                 VertexSubMeshes = m_VertexSubMeshes,
                 VertexTriangles = m_VertexTriangles
             };
-            m_AverageVertexColorsJobHandle =
-                m_AverageVertexColors.Schedule(m_Vertices.Length, 4, m_CalculateOverlappingVertsJobHandle);
+            m_AverageVertexColorsJobHandle = m_AverageVertexColors.Schedule(m_Vertices.Length, 4, m_CalculateOverlappingVertsJobHandle);
 
-            yield return new WaitUntil(() =>
-                m_CalculateOverlappingVertsJobHandle.IsCompleted && m_AverageVertexColorsJobHandle.IsCompleted);
+            yield return new WaitUntil(() => m_AverageVertexColorsJobHandle.IsCompleted);
 
             m_CalculateOverlappingVertsJobHandle.Complete();
             m_AverageVertexColorsJobHandle.Complete();

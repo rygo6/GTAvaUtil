@@ -41,7 +41,7 @@ For this to work your clothing items skeleton and your avatars skeleton must hav
 This will let you pose a SkinnedMeshRenderer, set its blendshapes and then bake it out to a static mesh. This I mainly use with the package Zologo VertexDirt to then bake down vertex ambient occlusion on a mesh after I tweaked its blendshapes and pose.
 
 1. Pose your skeleton and adjust the blendshapes to what you want.
-2. Then select the SkinnedMeshRender and click `Tools > GeoTetra > GTAvaUtil > Bake SkinnedMeshRenderer...`.
+2. Then select any number of SkinnedMeshRender's and click `Tools > GeoTetra > GTAvaUtil > Bake SkinnedMeshRenderer...`.
 
 ### 3. Transfer Mesh Colors...
 
