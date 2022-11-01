@@ -389,7 +389,7 @@ namespace GeoTetra.GTAvaUtil
             
             yield return null;
             
-            VertexColorSmoother smoother = new VertexColorSmoother(bakedMeshFilter, 2);
+            VertexColorSmoother smoother = new VertexColorSmoother(bakedMeshFilter.sharedMesh, 2);
             yield return smoother.RunCoroutine();
             smoother.Dispose();
                 
@@ -450,6 +450,8 @@ namespace GeoTetra.GTAvaUtil
                 }
             }
             
+            Object.DestroyImmediate(bakedMeshFilter.gameObject);
+            
             AssetDatabase.SaveAssets();
         }
         
@@ -503,14 +505,12 @@ namespace GeoTetra.GTAvaUtil
                 }
                 
                 var baker = new BruteAOBaker(meshFilter);
-                
                 yield return baker.RunCoroutine();
-
                 baker.Dispose();
             }
         }
         
-        [MenuItem("Tools/GeoTetra/GTAvaUtil/Average Vertex Colors On MeshFilter...", false)]
+        [MenuItem("Tools/GeoTetra/GTAvaUtil/Average Vertex Colors On SkinnedMeshRenders or MeshFilters...", false)]
         static void AverageVertexColorsOnMeshes(MenuCommand command)
         {
             void ErrorDialogue()
@@ -526,41 +526,87 @@ namespace GeoTetra.GTAvaUtil
                 return;
             }
 
-            List<MeshFilter> filters = new List<MeshFilter>();
+            var gameObjects = new List<GameObject>();
             
             foreach (var selectedObject in Selection.objects)
             {
                 if (selectedObject is GameObject selectedGameObject)
                 {
                     MeshFilter filter = selectedGameObject.GetComponent<MeshFilter>();
-                    if (filter == null)
+                    SkinnedMeshRenderer skinnedMeshRenderer = selectedGameObject.GetComponent<SkinnedMeshRenderer>();
+                    if (filter == null && skinnedMeshRenderer == null)
                     {
                         continue;
                     }
                     
-                    filters.Add(filter);
+                    gameObjects.Add(selectedGameObject);
                 }
             }
 
-            if (filters.Count == 0)
+            if (gameObjects.Count == 0)
             {
                 ErrorDialogue();
             }
             
-            EditorCoroutineUtility.StartCoroutine(AverageVertexColorsOnMeshesCoroutine(filters), filters[0]);
+            EditorCoroutineUtility.StartCoroutine(AverageVertexColorsOnMeshesCoroutine(gameObjects), gameObjects[0]);
         }
         
-        static IEnumerator AverageVertexColorsOnMeshesCoroutine(List<MeshFilter> filters)
+        static IEnumerator AverageVertexColorsOnMeshesCoroutine(List<GameObject> gameObjects)
         {
-            foreach (var meshFilter in filters)
+            foreach (var gameObject in gameObjects)
             {
-                VertexColorSmoother smoother = new VertexColorSmoother(meshFilter, 1);
+                var meshFilter = gameObject.GetComponent<MeshFilter>();
+                var skinnedMeshRenderer = gameObject.GetComponent<SkinnedMeshRenderer>();
+                Mesh sourceMesh = null;
+
+                if (meshFilter != null)
+                {
+                    sourceMesh = meshFilter.sharedMesh;
+                }
+                else if (skinnedMeshRenderer != null)
+                {
+                    sourceMesh = skinnedMeshRenderer.sharedMesh;
+                }
+                else
+                {
+                    Debug.LogWarning($"{gameObject} did not have necessary renderer or mesh.");
+                    continue;
+                }
+                
+                Mesh newDestinationMesh = null;
+                newDestinationMesh = Object.Instantiate(sourceMesh);
+                
+                VertexColorSmoother smoother = new VertexColorSmoother(newDestinationMesh, 1);
                 yield return smoother.RunCoroutine();
                 smoother.Dispose();
-                Debug.Log($"Mesh colors averaged on {meshFilter}! This does not save the mesh. Right now I use this before using TransferColors onto the mesh that does save. Might change this in the future.");
-            }
-        }
 
+                try
+                {
+                    var sourceMeshPath = AssetDatabase.GetAssetPath(sourceMesh);
+                    var destinationMeshpath = GetModifiedMeshPath(sourceMeshPath, sourceMesh.name, "AveragedVertices");
+                    AssetDatabase.CreateAsset(newDestinationMesh, destinationMeshpath);
+                }
+                catch (Exception e)
+                {
+                    Debug.LogWarning($"Couldn't save new mesh for {sourceMesh.name}: {e.Message}");
+                    continue;
+                }
+                
+                if (skinnedMeshRenderer != null)
+                {
+                    Undo.RecordObject(skinnedMeshRenderer, "Average Vertex Colors...");
+                    skinnedMeshRenderer.sharedMesh = newDestinationMesh;
+                }
+                else if (meshFilter != null)
+                {
+                    Undo.RecordObject(meshFilter, "Average Vertex Colors...");
+                    meshFilter.sharedMesh = newDestinationMesh;
+                }
+            }
+            
+            AssetDatabase.SaveAssets();
+        }
+            
         [MenuItem("Tools/GeoTetra/GTAvaUtil/Check for Update...", false)]
         static void CheckForUpdate()
         {

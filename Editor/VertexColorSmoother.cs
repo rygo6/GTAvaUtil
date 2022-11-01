@@ -15,6 +15,7 @@ namespace GeoTetra.GTAvaUtil
     public class VertexColorSmoother : IDisposable
     {
         readonly MeshFilter m_MeshFilter;
+        readonly SkinnedMeshRenderer m_skinnedMeshRenderer;
         readonly int m_SmoothIterations;
 
         Mesh m_Mesh;
@@ -51,12 +52,16 @@ namespace GeoTetra.GTAvaUtil
             }
         }
 
-        public VertexColorSmoother(MeshFilter meshFilter, int smoothIterations)
+        public VertexColorSmoother(Mesh mesh, int smoothIterations)
         {
             m_SmoothIterations = smoothIterations;
-            m_MeshFilter = meshFilter;
-            
-            m_Mesh = m_MeshFilter.sharedMesh;
+            m_Mesh = mesh;
+
+            if (m_Mesh == null)
+            {
+                Debug.LogWarning($"{m_Mesh} did not have necessary renderer or mesh.");
+                return;
+            }
 
             m_Vertices = new NativeArray<Vector3>(m_Mesh.vertices, Allocator.Persistent);
             m_ReadColors = new NativeArray<Color>(m_Mesh.colors, Allocator.Persistent);
@@ -88,7 +93,8 @@ namespace GeoTetra.GTAvaUtil
 
         public IEnumerator RunCoroutine()
         {
-            yield return AverageColors();
+            if (m_Mesh != null)
+                yield return AverageColors();
         }
 
         public void Dispose()
@@ -246,10 +252,10 @@ namespace GeoTetra.GTAvaUtil
                 {
                     newColors[i] = m_WriteColors[i];
                 }
-
-                m_MeshFilter.sharedMesh.colors = newColors;
-                m_MeshFilter.sharedMesh.UploadMeshData(false);
                 
+                m_Mesh.colors = newColors;
+                m_Mesh.UploadMeshData(false);
+
                 EditorUtility.DisplayProgressBar("Averaging Vertex Colors..", "", (((float)iteration / m_SmoothIterations) * .8f) + .2f);
             }
         }
