@@ -17,7 +17,7 @@ Join the GeoTetra Discord for support or suggestions about more avatar utilities
 
 All utilities are currently under the `Tools > GeoTetra > GTAvaUtil` menu at the top of the Unity Editor. Currently there are only a handful of utility methods.
 
-### 1 . Transfer SkinnedMeshRenderer Bones...
+### 1 . Transfer SkinnedMeshRenderer Bones To Another SkinnedMeshRenderer...
 
  This will let you attach a rigged clothing item to the skeleton of your avatar.
 

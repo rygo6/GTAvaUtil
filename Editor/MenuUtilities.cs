@@ -16,7 +16,7 @@ namespace GeoTetra.GTAvaUtil
     {
         const string okText = "Ok";
         
-        [MenuItem("Tools/GeoTetra/GTAvaUtil/Transfer SkinnedMeshRenderer Bones...", false)]
+        [MenuItem("Tools/GeoTetra/GTAvaUtil/Transfer SkinnedMeshRenderer Bones To Another SkinnedMeshRenderer...", false)]
         static void SetBonesTo(MenuCommand command)
         {
             void ErrorDialogue()
