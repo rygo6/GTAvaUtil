@@ -70,12 +70,12 @@ This will automatically place a light probe anchor at the average position betwe
 
 This will let you bake down Ambient Occlusion on an entire avatar to the vertex colors. This applies certain smoothing parameters as well to give you a very smooth, averaged, ambient occlusion effect. Generally find it superior to what you would get from Ambient Occlusion texture baking in blender, which can be too precise and look odd on avatars with so many moving parts.
 
-1. I would suggest posing your avatar into an A pose with its legs spread so the AO shaders the under arms and in between the legs better. I would also fully active the 'aa' blendshape so the mouth is open and AO get inside the mouth.
-2. Select all the SkinnedMeshRenderer's and MeshFilters you wish to bake AO onto. It is necessary to select them and bake at once so they occlude eachother.
+1. I would suggest posing your avatar into an A pose with its legs spread so the AO shades the under arms and in between the legs better. I would also fully activate the 'aa' blendshape so the mouth is open and AO get inside the mouth.
+2. Select all the SkinnedMeshRenderers and MeshFilters you wish to bake AO onto. It is necessary to select them all and bake them all at once so they occlude each other. Objects not in the selection will not contribute to the occlusion.
 3. Click `Tools > GeoTetra > GTAvaUtil > Bake Vertex AO On Combined MeshRenders+MeshFilters and Apply to Vertex Color...`.
 4. Wait for baking to finish. It applies the baked colors to the vertex colors of the mesh, saves a new mesh for each, and applies those back to the original SkinnedMeshRenderers and MeshFilters.
 
-You can selectively run `Average Vertex Colors On MeshFilter...` on specific mesh to smooth things out further.
+You can selectively run `Average Vertex Colors On MeshFilter...` on specific meshes to smooth things out further.
 
 ### 7. Bake Vertex AO On MeshFilters...
 
