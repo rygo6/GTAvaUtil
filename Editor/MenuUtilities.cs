@@ -389,7 +389,7 @@ namespace GeoTetra.GTAvaUtil
             
             yield return null;
             
-            VertexColorSmoother smoother = new VertexColorSmoother(bakedMeshFilter.sharedMesh, 2);
+            VertexColorSmoother smoother = new VertexColorSmoother(bakedMeshFilter.sharedMesh);
             yield return smoother.RunCoroutine();
             smoother.Dispose();
                 
@@ -576,7 +576,7 @@ namespace GeoTetra.GTAvaUtil
                 Mesh newDestinationMesh = null;
                 newDestinationMesh = Object.Instantiate(sourceMesh);
                 
-                VertexColorSmoother smoother = new VertexColorSmoother(newDestinationMesh, 1);
+                VertexColorSmoother smoother = new VertexColorSmoother(newDestinationMesh);
                 yield return smoother.RunCoroutine();
                 smoother.Dispose();
 
