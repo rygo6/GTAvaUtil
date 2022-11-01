@@ -42,6 +42,11 @@ namespace GeoTetra.GTAvaUtil
             m_Tangents = new NativeArray<Vector4>(mesh.tangents, Allocator.Persistent);
             m_Indices = new NativeArray<int>(mesh.triangles, Allocator.Persistent);
 
+            Debug.Assert(m_Vertices.Length > 0, "Mesh has no vertices?!");
+            Debug.Assert(m_Normals.Length > 0, "Mesh has no normals! If not exported from blender, set mesh to generate them.");
+            Debug.Assert(m_Tangents.Length > 0, "Mesh has no tangents! If not exported from blender, set mesh to generate them.");
+            Debug.Assert(m_Indices.Length > 0, "Mesh has no indices?");
+
             m_VerticesBuffer = new ComputeBuffer(m_Vertices.Length, sizeof(float) * 3);
             m_NormalsBuffer = new ComputeBuffer(m_Normals.Length, sizeof(float) * 3);
             m_TangentsBuffer = new ComputeBuffer(m_Tangents.Length, sizeof(float) * 4);
