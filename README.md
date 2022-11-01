@@ -36,7 +36,7 @@ For this to work your clothing items skeleton and your avatars skeleton must hav
 3. Next hold down ctrl and select the SkinnedMeshRenderer you want to transfer the bone data onto, this is probably your clothing items SkinnedMeshRender.
 4. Now click `Tools > GeoTetra > GTAvaUtil > Transfer SkinnedMeshRenderer Bones...`. If it completes without errors then it worked and should have made a new GameObject next to your avatars SkinnedMeshRenderer with your newly attached clothing item. If you rotate the leg or spine of your avatars skeleton, your clothing item should now be properly attached.
 
-### 2. Bake SkinnedMeshRenderer...
+### 2. Bake SkinnedMeshRenderer to MeshRenderer...
 
 This will let you pose a SkinnedMeshRenderer, set its blendshapes and then bake it out to a static mesh. This I mainly use with the package Zologo VertexDirt to then bake down vertex ambient occlusion on a mesh after I tweaked its blendshapes and pose.
 
@@ -66,10 +66,22 @@ This will automatically place a light probe anchor at the average position betwe
 2. Click `Tools > GeoTetra > GTAvaUtil > Add Probe Anchor From Averaged Mesh Positions...`.
 3. This will make a 'ProbeAnchor' GameObject hooked up to all the meshes. You can better position this afterwards if you wish.
 
-### 6. Average Vertex Colors On MeshFilter...
+### 6. Bake Vertex AO On Combined MeshRenders+MeshFilters and Apply to Vertex Color...
+
+1. Select all the SkinnedMeshRenderer's and MeshFilters you wish to bake AO onto. It is necessary to select them and bake at once so they occlude eachother.
+2. Click `Tools > GeoTetra > GTAvaUtil > Bake Vertex AO On Combined MeshRenders+MeshFilters and Apply to Vertex Color...`.
+3. Wait for baking to finish. It applies the baked colors to the vertex colors of the mesh, saves a new mesh for each, and applies those back to the original SkinnedMeshRenderers and MeshFilters.
+
+### 7. Bake Vertex AO On MeshFilters...
+
+1. Select a single MeshFilter to bake AO onto.
+2. Click `Tools > GeoTetra > GTAvaUtil > Bake Vertex AO On MeshFilters...`.
+3. Wait for baking to finish. It applies the baked colors to the vertex colors of the mesh and saves a new mesh.
+
+### 8. Average Vertex Colors On MeshFilter...
 
 This average the vertex colors on a selected meshfilter. Currently doesn't save it, use TransferColors to transfer to some saved mesh.
 
 1. Select the MeshFilter you want to average the vertex colors on.
 2. Click `Tools > GeoTetra > GTAvaUtil > Average Vertex Colors On MeshFilter...`.
-3. Vertex colors should appear smoothed in about a second.
+3. Vertex colors should appear smoothed in about a second. This doesn't actually save the mesh.

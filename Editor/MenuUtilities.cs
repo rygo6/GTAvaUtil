@@ -1,10 +1,13 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Linq;
 using System.Collections.Generic;
 using System.IO;
 using Unity.EditorCoroutines.Editor;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.Rendering;
+using Object = UnityEngine.Object;
 using PackageInfo = UnityEditor.PackageManager.PackageInfo;
 
 namespace GeoTetra.GTAvaUtil
@@ -78,7 +81,7 @@ namespace GeoTetra.GTAvaUtil
             EditorCoroutineUtility.StartCoroutine(RecalculateSkinnedMeshBoundsCoroutine(newDestinationRenderer), newDestinationRenderer);
         }
 
-        [MenuItem("Tools/GeoTetra/GTAvaUtil/Bake SkinnedMeshRenderer...", false)]
+        [MenuItem("Tools/GeoTetra/GTAvaUtil/Bake SkinnedMeshRenderer To MeshRenderer...", false)]
         static void BakeSkinnedMesh(MenuCommand command)
         {
             void ErrorDialogue()
@@ -265,6 +268,247 @@ namespace GeoTetra.GTAvaUtil
                 renderer.probeAnchor = anchorGameObject.transform;
             }
         }
+
+        class BakeApplyMesh
+        {
+            public GameObject GameObject;
+            public MeshFilter MeshFilter;
+            public SkinnedMeshRenderer SkinnedMeshRenderer;
+            public Mesh SharedMesh;
+            public readonly List<SubMeshDescriptor> SubMeshDescriptors = new List<SubMeshDescriptor>();
+            public readonly List<Material> BakeMaterials = new List<Material>();
+        }
+        
+        [MenuItem("Tools/GeoTetra/GTAvaUtil/Bake Vertex AO On Combined MeshRenders+MeshFilters and Apply to Vertex Color...", false)]
+        static void BakeVertexAOOnCombinedMeshes(MenuCommand command)
+        {
+            void ErrorDialogue()
+            {
+                EditorUtility.DisplayDialog("Insufficient Selection!",
+                    "Must Select GameObject with MeshFilter or SkinnedMeshRenderer.",
+                    "Ok");
+            }
+            
+            if (Selection.objects.Length == 0)
+            {
+                ErrorDialogue();
+                return;
+            }
+            
+            var combine = new List<CombineInstance>();
+            var bakeApplyMeshes = new List<BakeApplyMesh>();
+            var materials = new List<Material>();
+
+            foreach (var selectedObject in Selection.objects)
+            {
+                if (selectedObject is GameObject selectedGameObject)
+                {
+                    Mesh mesh = null;
+                    Transform transform = null;
+                    Matrix4x4 trs = Matrix4x4.identity;
+
+                    MeshFilter selectedFilter = selectedGameObject.GetComponent<MeshFilter>();
+                    SkinnedMeshRenderer selectedSkinnedMeshRenderer = selectedGameObject.GetComponent<SkinnedMeshRenderer>();
+                    if (selectedSkinnedMeshRenderer != null)
+                    {
+                        mesh = new Mesh();
+                        selectedSkinnedMeshRenderer.BakeMesh(mesh);
+                        selectedSkinnedMeshRenderer.gameObject.SetActive(false);
+                        // for some reason you want scale to be one on skinned mesh renderers
+                        trs = Matrix4x4.TRS(selectedSkinnedMeshRenderer.transform.position, selectedSkinnedMeshRenderer.transform.rotation, Vector3.one);
+                    }
+                    else if (selectedFilter != null)
+                    {
+                        mesh = selectedFilter.sharedMesh;
+                        selectedFilter.gameObject.SetActive(false);
+                        trs = Matrix4x4.TRS(selectedFilter.transform.position, selectedFilter.transform.rotation, selectedFilter.transform.lossyScale);
+                    }
+                    else
+                    {
+                        Debug.LogWarning($"No MeshFilter nor SkinnedMeshRender on selected {selectedGameObject.name}");
+                    }
+
+                    if (mesh == null)
+                    {
+                        continue;
+                    }
+
+                    var bakeApplyMesh = new BakeApplyMesh()
+                    {
+                        GameObject = selectedGameObject,
+                        MeshFilter = selectedFilter,
+                        SkinnedMeshRenderer = selectedSkinnedMeshRenderer,
+                        SharedMesh = mesh
+                    };
+                    
+                    for (int i = 0; i < mesh.subMeshCount; ++i)
+                    {
+                        Material material = new Material(Shader.Find("GeoTetra/GTAvaUtil/DebugVertexColor"))
+                        {
+                            name = selectedObject.name + i
+                        };
+                        materials.Add(material);
+                        
+                        combine.Add(new CombineInstance
+                        {
+                            mesh = mesh,
+                            transform = trs,
+                            subMeshIndex = i,
+                        });
+                        
+                        var descriptor = mesh.GetSubMesh(i);
+                        bakeApplyMesh.SubMeshDescriptors.Add(descriptor);
+                        bakeApplyMesh.BakeMaterials.Add(material);
+                    }
+                    
+                    bakeApplyMeshes.Add(bakeApplyMesh);
+                }
+            }
+
+            if (combine.Count == 0)
+            {
+                ErrorDialogue();
+                return;
+            }
+
+            GameObject gameObject = new GameObject("BakedAOCombinedMesh (Can Delete, only for debug)");
+            MeshRenderer renderer = gameObject.AddComponent<MeshRenderer>();
+            renderer.sharedMaterials = materials.ToArray();
+            MeshFilter filter = gameObject.AddComponent<MeshFilter>();
+            filter.sharedMesh = new Mesh();
+            filter.sharedMesh.CombineMeshes(combine.ToArray(), false, true, false);
+            
+            EditorCoroutineUtility.StartCoroutine(BakeVertexAOOnCombinedMeshesCoroutine(filter, renderer, bakeApplyMeshes), filter);
+        }
+        
+        static IEnumerator BakeVertexAOOnCombinedMeshesCoroutine(MeshFilter bakedMeshFilter, MeshRenderer renderer,  List<BakeApplyMesh> bakeApplyMeshes)
+        {
+            var baker = new BruteAOBaker(bakedMeshFilter);
+            yield return baker.RunCoroutine();
+            baker.Dispose();
+            
+            yield return null;
+            
+            VertexColorSmoother smoother = new VertexColorSmoother(bakedMeshFilter, 2);
+            yield return smoother.RunCoroutine();
+            smoother.Dispose();
+                
+            yield return null;
+            
+            int submeshIndex = 0;
+            foreach (var bakeApplyMesh in bakeApplyMeshes)
+            {
+                List<Color> combinedColors = new List<Color>();
+                
+                for (int i = 0; i < bakeApplyMesh.SubMeshDescriptors.Count; ++i)
+                {
+                    var submesh = bakedMeshFilter.sharedMesh.GetSubMesh(submeshIndex);
+                    var newColors = new Color[submesh.vertexCount];
+                    Array.Copy(bakedMeshFilter.sharedMesh.colors, submesh.firstVertex, newColors, 0, submesh.vertexCount);
+                    combinedColors.AddRange(newColors);
+                    submeshIndex++;
+                }
+
+                Mesh sourceMesh = null;
+                if (bakeApplyMesh.SkinnedMeshRenderer != null)
+                {
+                    bakeApplyMesh.SkinnedMeshRenderer.gameObject.SetActive(true);
+                    sourceMesh = bakeApplyMesh.SkinnedMeshRenderer.sharedMesh;
+                }
+                else if (bakeApplyMesh.MeshFilter != null)
+                {
+                    bakeApplyMesh.MeshFilter.gameObject.SetActive(true);
+                    sourceMesh = bakeApplyMesh.MeshFilter.sharedMesh;
+                }
+                else
+                    continue;
+
+                Mesh newDestinationMesh = Object.Instantiate(sourceMesh);
+                newDestinationMesh.SetColors(combinedColors.ToArray());
+                
+                try
+                {
+                    var oldMeshPath = AssetDatabase.GetAssetPath(sourceMesh);
+                    var encryptedMeshPath = GetModifiedMeshPath(oldMeshPath, sourceMesh.name, "BakedVertexAO");
+                    AssetDatabase.CreateAsset(newDestinationMesh, encryptedMeshPath);
+                }
+                catch (Exception e)
+                {
+                    Debug.LogWarning($"Couldn't save new mesh for {sourceMesh.name}: {e.Message}");
+                    continue;
+                }
+
+                if (bakeApplyMesh.SkinnedMeshRenderer != null)
+                {
+                    Undo.RecordObject(bakeApplyMesh.SkinnedMeshRenderer, "Bake Vertex AO...");
+                    bakeApplyMesh.SkinnedMeshRenderer.sharedMesh = newDestinationMesh;
+                }
+                else if (bakeApplyMesh.MeshFilter != null)
+                {
+                    Undo.RecordObject(bakeApplyMesh.MeshFilter, "Bake Vertex AO...");
+                    bakeApplyMesh.MeshFilter.sharedMesh = newDestinationMesh;
+                }
+            }
+            
+            AssetDatabase.SaveAssets();
+        }
+        
+        [MenuItem("Tools/GeoTetra/GTAvaUtil/Bake Vertex AO On MeshFilters...", false)]
+        static void BakeVertexAOOnMeshes(MenuCommand command)
+        {
+            void ErrorDialogue()
+            {
+                EditorUtility.DisplayDialog("Insufficient Selection!",
+                    "Must Select GameObject with MeshFilter.",
+                    "Ok");
+            }
+            
+            if (Selection.objects.Length == 0)
+            {
+                ErrorDialogue();
+                return;
+            }
+
+            List<MeshFilter> filters = new List<MeshFilter>();
+            
+            foreach (var selectedObject in Selection.objects)
+            {
+                if (selectedObject is GameObject selectedGameObject)
+                {
+                    MeshFilter filter = selectedGameObject.GetComponent<MeshFilter>();
+                    if (filter == null)
+                    {
+                        continue;
+                    }
+                    
+                    filters.Add(filter);
+                }
+            }
+
+            if (filters.Count == 0)
+            {
+                ErrorDialogue();
+            }
+            
+            EditorCoroutineUtility.StartCoroutine(BakeVertexAOOnMeshesCoroutine(filters), filters[0]);
+        }
+        
+        static IEnumerator BakeVertexAOOnMeshesCoroutine(List<MeshFilter> filters)
+        {
+            foreach (var meshFilter in filters)
+            {
+                foreach (var material in meshFilter.GetComponent<MeshRenderer>().materials)
+                {
+                    material.shader = Shader.Find("GeoTetra/GTAvaUtil/DebugVertexColor");
+                }
+                
+                var baker = new BruteAOBaker(meshFilter);
+                
+                yield return baker.RunCoroutine();
+
+                baker.Dispose();
+            }
+        }
         
         [MenuItem("Tools/GeoTetra/GTAvaUtil/Average Vertex Colors On MeshFilter...", false)]
         static void AverageVertexColorsOnMeshes(MenuCommand command)
@@ -305,25 +549,15 @@ namespace GeoTetra.GTAvaUtil
             
             EditorCoroutineUtility.StartCoroutine(AverageVertexColorsOnMeshesCoroutine(filters), filters[0]);
         }
-
+        
         static IEnumerator AverageVertexColorsOnMeshesCoroutine(List<MeshFilter> filters)
         {
             foreach (var meshFilter in filters)
             {
-                EditorUtility.DisplayProgressBar("Averaging Vertex Colors..", "", 0);
-            
-                VertexColorSmoother smoother = new VertexColorSmoother(meshFilter);
+                VertexColorSmoother smoother = new VertexColorSmoother(meshFilter, 1);
                 yield return smoother.RunCoroutine();
-                var newColors = smoother.OutputColors;
-                
-                meshFilter.sharedMesh.colors = newColors;
-                meshFilter.sharedMesh.UploadMeshData(false);
-
                 smoother.Dispose();
-                
                 Debug.Log($"Mesh colors averaged on {meshFilter}! This does not save the mesh. Right now I use this before using TransferColors onto the mesh that does save. Might change this in the future.");
-                
-                EditorUtility.ClearProgressBar();
             }
         }
 

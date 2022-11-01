@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering;
 using VRC.Collections;
@@ -13,9 +14,8 @@ namespace GeoTetra.GTAvaUtil
 {
     public class VertexColorSmoother : IDisposable
     {
-        public Color[] OutputColors { get; private set; }
-
         readonly MeshFilter m_MeshFilter;
+        readonly int m_SmoothIterations;
 
         Mesh m_Mesh;
         NativeArray<Vector3> m_Vertices;
@@ -51,24 +51,11 @@ namespace GeoTetra.GTAvaUtil
             }
         }
 
-        public VertexColorSmoother(MeshFilter meshFilter)
+        public VertexColorSmoother(MeshFilter meshFilter, int smoothIterations)
         {
+            m_SmoothIterations = smoothIterations;
             m_MeshFilter = meshFilter;
-        }
-
-        public IEnumerator RunCoroutine()
-        {
-            Initialize();
-            yield return AverageColors();
-        }
-
-        public void Dispose()
-        {
-            Cleanup();
-        }
-
-        void Initialize()
-        {
+            
             m_Mesh = m_MeshFilter.sharedMesh;
 
             m_Vertices = new NativeArray<Vector3>(m_Mesh.vertices, Allocator.Persistent);
@@ -77,7 +64,6 @@ namespace GeoTetra.GTAvaUtil
             int triIndexCount = m_Mesh.triangles.Length;
 
             m_OverlappingVertIndices = new NativeMultiHashMap<int, int>(m_Mesh.vertexCount, Allocator.Persistent);
-            Debug.Log("Created m_OverlappingVertIndices " + m_OverlappingVertIndices.Capacity);
             m_VertexTriangles = new NativeMultiHashMap<int, int>(triIndexCount, Allocator.Persistent);
             m_VertexSubMeshes = new NativeHashMap<int, int>(m_Mesh.vertexCount, Allocator.Persistent);
             m_SubMeshes = new NativeArray<SubMesh>(m_Mesh.subMeshCount, Allocator.Persistent);
@@ -100,7 +86,12 @@ namespace GeoTetra.GTAvaUtil
             }
         }
 
-        void Cleanup()
+        public IEnumerator RunCoroutine()
+        {
+            yield return AverageColors();
+        }
+
+        public void Dispose()
         {
             m_Vertices.Dispose();
             m_ReadColors.Dispose();
@@ -114,6 +105,8 @@ namespace GeoTetra.GTAvaUtil
                 m_SubMeshes[i].Dispose();
 
             m_SubMeshes.Dispose();
+            
+            EditorUtility.ClearProgressBar();
         }
 
         [BurstCompile]
@@ -137,7 +130,7 @@ namespace GeoTetra.GTAvaUtil
                 }
             }
         }
-
+        
         [BurstCompile]
         struct AverageVertexColors : IJobParallelFor
         {
@@ -176,22 +169,19 @@ namespace GeoTetra.GTAvaUtil
             {
                 foreach (var triIndex in VertexTriangles.GetValuesForKey(vertIndex))
                 {
-                    AverageTriIndexColors(vertIndex, triIndex, VertexSubMeshes[vertIndex], ref averagedColor,
-                        ref totalFlowCount);
+                    AverageTriIndexColors(vertIndex, triIndex, VertexSubMeshes[vertIndex], ref averagedColor, ref totalFlowCount);
                 }
 
                 foreach (var overlapVertIndex in OverlappingVertIndices.GetValuesForKey(vertIndex))
                 {
                     foreach (var triIndex in VertexTriangles.GetValuesForKey(overlapVertIndex))
                     {
-                        AverageTriIndexColors(vertIndex, triIndex, VertexSubMeshes[overlapVertIndex], ref averagedColor,
-                            ref totalFlowCount);
+                        AverageTriIndexColors(vertIndex, triIndex, VertexSubMeshes[overlapVertIndex], ref averagedColor, ref totalFlowCount);
                     }
                 }
             }
 
-            void AverageTriIndexColors(int vertIndex, int triIndex, int subMeshIndex, ref Color averagedFlow,
-                ref int totalFlowCount)
+            void AverageTriIndexColors(int vertIndex, int triIndex, int subMeshIndex, ref Color averagedFlow, ref int totalFlowCount)
             {
                 int triIndexStartOffset = triIndex % 3;
                 int triIndexStart = triIndex - triIndexStartOffset;
@@ -221,6 +211,8 @@ namespace GeoTetra.GTAvaUtil
 
         IEnumerator AverageColors()
         {
+            EditorUtility.DisplayProgressBar("Calculating Overlapping Verts..", "", 0);
+            
             m_CalculateOverlappingVertsJob = new CalculateOverlappingVertsJob
             {
                 SearchDistance = float.Epsilon,
@@ -229,29 +221,37 @@ namespace GeoTetra.GTAvaUtil
             };
             m_CalculateOverlappingVertsJobHandle = m_CalculateOverlappingVertsJob.Schedule(m_Vertices.Length, 4);
 
-            m_AverageVertexColors = new AverageVertexColors
+            EditorUtility.DisplayProgressBar("Averaging Vertex Colors..", "", .2f);
+
+            for (int iteration = 0; iteration < m_SmoothIterations; ++iteration)
             {
-                ReadColors = m_ReadColors,
-                WriteColors = m_WriteColors.AsParallelWriter(),
-                SubMeshes = m_SubMeshes,
-                OverlappingVertIndices = m_OverlappingVertIndices,
-                VertexSubMeshes = m_VertexSubMeshes,
-                VertexTriangles = m_VertexTriangles
-            };
-            m_AverageVertexColorsJobHandle = m_AverageVertexColors.Schedule(m_Vertices.Length, 4, m_CalculateOverlappingVertsJobHandle);
+                m_AverageVertexColors = new AverageVertexColors
+                {
+                    ReadColors = m_ReadColors,
+                    WriteColors = m_WriteColors.AsParallelWriter(),
+                    SubMeshes = m_SubMeshes,
+                    OverlappingVertIndices = m_OverlappingVertIndices,
+                    VertexSubMeshes = m_VertexSubMeshes,
+                    VertexTriangles = m_VertexTriangles
+                };
+                m_AverageVertexColorsJobHandle = m_AverageVertexColors.Schedule(m_Vertices.Length, 4, m_CalculateOverlappingVertsJobHandle);
 
-            yield return new WaitUntil(() => m_AverageVertexColorsJobHandle.IsCompleted);
+                yield return new WaitUntil(() => m_AverageVertexColorsJobHandle.IsCompleted);
 
-            m_CalculateOverlappingVertsJobHandle.Complete();
-            m_AverageVertexColorsJobHandle.Complete();
+                m_CalculateOverlappingVertsJobHandle.Complete();
+                m_AverageVertexColorsJobHandle.Complete();
 
-            Color[] newColors = new Color[m_Mesh.vertexCount];
-            for (int i = 0; i < newColors.Length; ++i)
-            {
-                newColors[i] = m_WriteColors[i];
+                Color[] newColors = new Color[m_Mesh.vertexCount];
+                for (int i = 0; i < newColors.Length; ++i)
+                {
+                    newColors[i] = m_WriteColors[i];
+                }
+
+                m_MeshFilter.sharedMesh.colors = newColors;
+                m_MeshFilter.sharedMesh.UploadMeshData(false);
+                
+                EditorUtility.DisplayProgressBar("Averaging Vertex Colors..", "", (((float)iteration / m_SmoothIterations) * .8f) + .2f);
             }
-
-            OutputColors = newColors;
         }
     }
 }

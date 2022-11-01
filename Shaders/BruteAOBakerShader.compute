@@ -1,0 +1,112 @@
+StructuredBuffer<float3> _vertices;
+StructuredBuffer<float3> _normals;
+StructuredBuffer<float4> _tangents;
+StructuredBuffer<int> _indices;
+RWStructuredBuffer<float> _aoVertDist;
+int _VertLength;
+int _IndicesLength;
+float4x4 unity_ObjectToWorld;
+float4x4 unity_WorldToObject;
+float _HeightAngle;
+float _YAngle;
+float _SurfaceOffset;
+
+#define FLT_EPSILON 1.192092896e-07
+#define INFINITY_FLOAT 1 - FLT_EPSILON
+
+// from https://www.graphicon.ru/html/2012/conference/EN2%20-%20Graphics/gc2012Shumskiy.pdf
+float intersect(float3 orig, float3 dir, float3 v0, float3 v1, float3 v2) 
+{ 
+    float3 e1 = v1 - v0;
+    float3 e2 = v2 - v0;
+    float3 normal = normalize(cross(e1, e2));
+    float b = dot(normal, dir);
+    float3 w0 = orig - v0;
+    float a = -dot(normal, w0);
+    float t = a / b;
+    float3 p = orig + t * dir;
+    float uu, uv, vv, wu, wv, inverseD;
+    uu = dot(e1, e1);
+    uv = dot(e1, e2);
+    vv = dot(e2, e2);
+    float3 w = p - v0;
+    wu = dot(w, e1);
+    wv = dot(w, e2);
+    inverseD = uv * uv - uu * vv;
+    inverseD = 1.0f / inverseD;
+    float u = (uv * wv - vv * wu) * inverseD;
+    if (u < 0.0f || u > 1.0f)
+        return -1.0f;
+    float v = (uv * wu - uu * wv) * inverseD;
+    if (v < 0.0f || (u + v) > 1.0f)
+        return -1.0f;
+    // UV = float2(u,v);
+    return t;
+}
+
+float bruteTrace(float3 rayOrigin, float3 rayDirection)
+{
+    float currentT = INFINITY_FLOAT;
+    
+    for (int i = 0; i < _IndicesLength; i += 3)
+    {
+        int ia = _indices[i];
+        int ib = _indices[i + 1];
+        int ic = _indices[i + 2];
+        
+        float3 a = _vertices[ia];
+        float3 b = _vertices[ib];
+        float3 c = _vertices[ic];
+
+        float3 wA = mul(unity_ObjectToWorld, float4( a, 1.0 ) ).xyz;
+        float3 wB = mul(unity_ObjectToWorld, float4( b, 1.0 ) ).xyz;
+        float3 wC = mul(unity_ObjectToWorld, float4( c, 1.0 ) ).xyz;
+        
+        float newT = intersect(rayOrigin + (rayDirection * FLT_EPSILON), rayDirection, wA, wB, wC);
+        if (newT > 0 && newT < currentT) 
+        {
+            currentT = newT;
+        }
+    }
+    
+    return currentT;
+}
+
+inline float3 UnityObjectToWorldNormal( in float3 norm )
+{
+    return normalize(mul(norm, (float3x3)unity_WorldToObject));
+}
+
+#pragma kernel BruteAOVertBake
+[numthreads(64,1,1)]
+void BruteAOVertBake(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x > _VertLength) return;
+    
+    const float3 worldVertex = mul(unity_ObjectToWorld, float4( _vertices[id.x], 1.0 ) ).xyz;
+    const float3 worldNormal = UnityObjectToWorldNormal(_normals[id.x]);
+    const float3 worldTangent = UnityObjectToWorldNormal(_tangents[id.x].xyz);
+                
+    const float3 right = worldTangent;
+    const float3 up = cross(worldNormal, worldTangent);
+    const float3 left = cross(worldNormal, up);
+    const float3 down = cross(worldNormal, left);
+
+    const int sideDirectionCount = 4;
+        
+    float3 sideDirections[sideDirectionCount] = {
+        lerp(right, up, _YAngle),
+        lerp(up, left, _YAngle),
+        lerp(left, down, _YAngle),
+        lerp(down, right, _YAngle)
+    };
+
+    float dist = 0;
+    for (int d = 0; d < sideDirectionCount; ++d)
+    {
+        float3 direction = lerp(worldNormal, sideDirections[d], _HeightAngle);
+        dist += bruteTrace(worldVertex + (direction * _SurfaceOffset),  direction) / sideDirectionCount;
+    }
+
+    _aoVertDist[id.x] = dist;
+}
