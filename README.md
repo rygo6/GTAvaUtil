@@ -77,13 +77,7 @@ This will let you bake down Ambient Occlusion on an entire avatar to the vertex 
 
 You can selectively run `Average Vertex Colors On MeshFilter...` on specific meshes to smooth things out further.
 
-### 7. Bake Vertex AO On MeshFilters...
-
-1. Select a single MeshFilter to bake AO onto.
-2. Click `Tools > GeoTetra > GTAvaUtil > Bake Vertex AO On MeshFilters...`.
-3. Wait for baking to finish. It applies the baked colors to the vertex colors of the mesh and saves a new mesh.
-
-### 8. Average Vertex Colors On MeshFilter...
+### 7. Average Vertex Colors On MeshFilter...
 
 This averages the vertex colors on a selected Meshfilters or skinnedMeshRenderers, saves it to a new mesh and applies it back to the renderer.
 

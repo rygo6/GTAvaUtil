@@ -454,62 +454,7 @@ namespace GeoTetra.GTAvaUtil
             
             AssetDatabase.SaveAssets();
         }
-        
-        [MenuItem("Tools/GeoTetra/GTAvaUtil/Bake Vertex AO On MeshFilters...", false)]
-        static void BakeVertexAOOnMeshes(MenuCommand command)
-        {
-            void ErrorDialogue()
-            {
-                EditorUtility.DisplayDialog("Insufficient Selection!",
-                    "Must Select GameObject with MeshFilter.",
-                    "Ok");
-            }
-            
-            if (Selection.objects.Length == 0)
-            {
-                ErrorDialogue();
-                return;
-            }
 
-            List<MeshFilter> filters = new List<MeshFilter>();
-            
-            foreach (var selectedObject in Selection.objects)
-            {
-                if (selectedObject is GameObject selectedGameObject)
-                {
-                    MeshFilter filter = selectedGameObject.GetComponent<MeshFilter>();
-                    if (filter == null)
-                    {
-                        continue;
-                    }
-                    
-                    filters.Add(filter);
-                }
-            }
-
-            if (filters.Count == 0)
-            {
-                ErrorDialogue();
-            }
-            
-            EditorCoroutineUtility.StartCoroutine(BakeVertexAOOnMeshesCoroutine(filters), filters[0]);
-        }
-        
-        static IEnumerator BakeVertexAOOnMeshesCoroutine(List<MeshFilter> filters)
-        {
-            foreach (var meshFilter in filters)
-            {
-                foreach (var material in meshFilter.GetComponent<MeshRenderer>().materials)
-                {
-                    material.shader = Shader.Find("GeoTetra/GTAvaUtil/DebugVertexColor");
-                }
-                
-                var baker = new BruteAOBaker(meshFilter);
-                yield return baker.RunCoroutine();
-                baker.Dispose();
-            }
-        }
-        
         [MenuItem("Tools/GeoTetra/GTAvaUtil/Average Vertex Colors On SkinnedMeshRenders or MeshFilters...", false)]
         static void AverageVertexColorsOnMeshes(MenuCommand command)
         {
