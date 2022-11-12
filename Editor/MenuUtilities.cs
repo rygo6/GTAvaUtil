@@ -16,260 +16,7 @@ namespace GeoTetra.GTAvaUtil
     {
         const string okText = "Ok";
         
-        [MenuItem("Tools/GeoTetra/GTAvaUtil/Transfer SkinnedMeshRenderer Bones To Another SkinnedMeshRenderer...", false)]
-        static void SetBonesTo(MenuCommand command)
-        {
-            void ErrorDialogue()
-            {
-                EditorUtility.DisplayDialog("Select two SkinnedMeshRenderers.",
-                    "Select the SkinnedMeshRender you want to transfer bones from, then the SkinnedMeshRenderer you wan to transfer bones to.",
-                    "Ok");
-            }
-            
-            if (Selection.objects.Length != 2)
-            {
-                ErrorDialogue();
-                return;
-            }
-
-            SkinnedMeshRenderer sourceRenderer = (Selection.objects[0] as GameObject).GetComponent<SkinnedMeshRenderer>();
-            SkinnedMeshRenderer destinationRenderer = (Selection.objects[1] as GameObject).GetComponent<SkinnedMeshRenderer>();
-            if (sourceRenderer == null || destinationRenderer == null)
-            {
-                ErrorDialogue();
-                return;
-            }
-
-            Dictionary<string, Transform> sourceBones = new Dictionary<string, Transform>();
-            foreach (var bone in sourceRenderer.bones)
-            {
-                sourceBones.Add(bone.name, bone);
-            }
-            
-            Matrix4x4[] newBindPoses = new Matrix4x4[destinationRenderer.bones.Length];
-            Transform[] newBones = new Transform[destinationRenderer.bones.Length];
-            for (int i = 0; i < destinationRenderer.bones.Length; ++i)
-            {
-                var destinationBone = destinationRenderer.bones[i];
-                if (sourceBones.TryGetValue(destinationBone.name, out var newBone))
-                {
-                    newBones[i] = newBone;
-                    newBindPoses[i] = newBone.worldToLocalMatrix * destinationRenderer.localToWorldMatrix;
-                }
-                else
-                {
-                    EditorUtility.DisplayDialog($"Couldn't find bone {destinationBone.name}!",
-                        "In order to transfer bones, every bone in the new SkinnnedMeshRender must also be in the prior SkinnedMeshRender and named the same.",
-                        "Ok");
-                    return;
-                }
-            }
-            
-            Mesh newDestinationMesh = MonoBehaviour.Instantiate(destinationRenderer.sharedMesh);
-            newDestinationMesh.bindposes = newBindPoses;
-            string oldMeshPath = AssetDatabase.GetAssetPath(destinationRenderer.sharedMesh);
-            var encryptedMeshPath = GetModifiedMeshPath(oldMeshPath, destinationRenderer.sharedMesh.name, "TransferredBones");
-            AssetDatabase.CreateAsset(newDestinationMesh, encryptedMeshPath);
-            AssetDatabase.SaveAssets();
-
-            var newDestinationRenderer  = MonoBehaviour.Instantiate(destinationRenderer);
-            Undo.RegisterCreatedObjectUndo(newDestinationRenderer.gameObject, "Transferred Bones.");
-            newDestinationRenderer.bones = newBones;
-            newDestinationRenderer.rootBone = sourceRenderer.rootBone;
-            newDestinationRenderer.sharedMesh = newDestinationMesh;
-            newDestinationRenderer.transform.SetParent(sourceRenderer.transform.parent, false);
-            EditorCoroutineUtility.StartCoroutine(RecalculateSkinnedMeshBoundsCoroutine(newDestinationRenderer), newDestinationRenderer);
-        }
-
-        [MenuItem("Tools/GeoTetra/GTAvaUtil/Bake SkinnedMeshRenderer To MeshRenderer...", false)]
-        static void BakeSkinnedMesh(MenuCommand command)
-        {
-            void ErrorDialogue()
-            {
-                EditorUtility.DisplayDialog("Insufficient Selection!",
-                    "Select SkinnedMeshRenders to bake.",
-                    "Ok");
-            }
-
-            if (Selection.objects.Length == 0)
-            {
-                ErrorDialogue();
-                return;
-            }
-
-            int processedCount = 0;
-            foreach (var selectedObject in Selection.objects)
-            {
-                if (selectedObject is GameObject selectedGameObject)
-                {
-                    SkinnedMeshRenderer sourceRenderer = selectedGameObject.GetComponent<SkinnedMeshRenderer>();
-                    if (sourceRenderer == null)
-                    {
-                        continue;
-                    }
-
-                    Mesh bakedMesh = new Mesh();
-                    sourceRenderer.BakeMesh(bakedMesh);
-                    string oldMeshPath = AssetDatabase.GetAssetPath(sourceRenderer.sharedMesh);
-                    var encryptedMeshPath = GetModifiedMeshPath(oldMeshPath, sourceRenderer.sharedMesh.name, "BakedSkinnedMesh");
-                    AssetDatabase.CreateAsset(bakedMesh, encryptedMeshPath);
-                    AssetDatabase.SaveAssets();
-
-                    GameObject gameObject = new GameObject(Path.GetFileNameWithoutExtension(encryptedMeshPath));
-                    gameObject.AddComponent<MeshFilter>().sharedMesh = bakedMesh;
-                    gameObject.AddComponent<MeshRenderer>().sharedMaterials = sourceRenderer.sharedMaterials;
-                    gameObject.transform.position = sourceRenderer.transform.position;
-                    gameObject.transform.rotation = sourceRenderer.transform.rotation;
-                    Undo.RegisterCreatedObjectUndo(gameObject, "Baked SkinnedMeshRenderer");
-
-                    processedCount++;
-                }
-            }
-
-            if (processedCount == 0)
-            {
-                ErrorDialogue();
-            }
-        }
-
-        [MenuItem("Tools/GeoTetra/GTAvaUtil/Transfer Mesh Colors...", false)]
-        static void TransferColors(MenuCommand command)
-        {
-            void ErrorDialogue()
-            {
-                EditorUtility.DisplayDialog("Insufficient Selection!",
-                    "Must Select Bake MeshFilter first, then SkinnedMeshRenderer.",
-                    "Ok");
-            }
-            
-            if (Selection.objects.Length != 2)
-            {
-                ErrorDialogue();
-                return;
-            }
-
-            MeshFilter sourceFilter = (Selection.objects[0] as GameObject).GetComponent<MeshFilter>();
-            SkinnedMeshRenderer destinationRenderer = (Selection.objects[1] as GameObject).GetComponent<SkinnedMeshRenderer>();
-            if (sourceFilter == null || destinationRenderer == null)
-            {
-                ErrorDialogue();
-                return;
-            }
-            
-            Mesh newDestinationMesh = MonoBehaviour.Instantiate(destinationRenderer.sharedMesh);
-            newDestinationMesh.SetColors(sourceFilter.sharedMesh.colors);
-            string oldMeshPath = AssetDatabase.GetAssetPath(destinationRenderer.sharedMesh);
-            var encryptedMeshPath = GetModifiedMeshPath(oldMeshPath, sourceFilter.sharedMesh.name,"TransferredVertexColors");
-            AssetDatabase.CreateAsset(newDestinationMesh, encryptedMeshPath);
-            AssetDatabase.SaveAssets();
-            
-            Undo.RecordObject(destinationRenderer, "Transfer Mesh Colors...");
-            destinationRenderer.sharedMesh = newDestinationMesh;
-        }
-
-        [MenuItem("Tools/GeoTetra/GTAvaUtil/Recalculate SkinnedMeshRenderer Bounds...", false)]
-        static void RecalculateSkinnedMeshBounds(MenuCommand command)
-        {
-            void ErrorDialogue()
-            {
-                EditorUtility.DisplayDialog("Insufficient Selection!",
-                    "Must Select SkinnedMeshRenderers.",
-                    "Ok");
-            }
-            
-            if (Selection.objects.Length == 0)
-            {
-                ErrorDialogue();
-                return;
-            }
-            
-            foreach (var selectedObject in Selection.objects)
-            {
-                if (selectedObject is GameObject selectedGameObject)
-                {
-                    SkinnedMeshRenderer renderer = selectedGameObject.GetComponent<SkinnedMeshRenderer>();
-                    if (renderer != null)
-                    {
-                        EditorCoroutineUtility.StartCoroutine(RecalculateSkinnedMeshBoundsCoroutine(renderer), renderer);
-                    }
-                }
-            }
-        }
-        
-        [MenuItem("Tools/GeoTetra/GTAvaUtil/Add Probe Anchor From Averaged Mesh Positions...", false)]
-        static void AddProbeAtAveragedMeshPositions(MenuCommand command)
-        {
-            void ErrorDialogue()
-            {
-                EditorUtility.DisplayDialog("Insufficient Selection!",
-                    "Must select multiple SkinnedMeshRenderer's.",
-                    "Ok");
-            }
-            
-            if (Selection.objects.Length < 2)
-            {
-                ErrorDialogue();
-                return;
-            }
-
-            List<SkinnedMeshRenderer> skinnedMeshRenderers = new List<SkinnedMeshRenderer>();
-            List<MeshRenderer> meshRenderers = new List<MeshRenderer>();
-            foreach (var selectedObject in Selection.objects)
-            {
-                if (selectedObject is GameObject selectedGameObject)
-                {
-                    SkinnedMeshRenderer skinnedMeshRenderer = selectedGameObject.GetComponent<SkinnedMeshRenderer>();
-                    if (skinnedMeshRenderer != null)
-                    {
-                        skinnedMeshRenderers.Add(skinnedMeshRenderer);
-                        continue;
-                    }
-                    
-                    MeshRenderer renderer = selectedGameObject.GetComponent<MeshRenderer>();
-                    if (renderer != null)
-                    {
-                        meshRenderers.Add(renderer);
-                    }
-                }
-            }
-
-            if (skinnedMeshRenderers.Count + meshRenderers.Count < 2)
-            {
-                ErrorDialogue();
-                return;
-            }
-
-            Renderer firstRender;
-            if (skinnedMeshRenderers.Count > 0)
-                firstRender = skinnedMeshRenderers[0];
-            else
-                firstRender = meshRenderers[0];
-            
-            Bounds worldBounds = new Bounds(firstRender.transform.position, Vector3.zero);
-            foreach (var renderer in skinnedMeshRenderers)
-            {
-                worldBounds.Encapsulate(renderer.bounds);
-            }
-            foreach (var renderer in meshRenderers)
-            {
-                worldBounds.Encapsulate(renderer.bounds);
-            }
-            
-            GameObject anchorGameObject = new GameObject("ProbeAnchor");
-            anchorGameObject.transform.SetParent(firstRender.transform.root);
-            anchorGameObject.transform.position = worldBounds.center;
-            
-            foreach (var renderer in skinnedMeshRenderers)
-            {
-                renderer.probeAnchor = anchorGameObject.transform;
-            }
-            foreach (var renderer in meshRenderers)
-            {
-                renderer.probeAnchor = anchorGameObject.transform;
-            }
-        }
-
-        class BakeApplyMesh
+                class BakeApplyMesh
         {
             public GameObject GameObject;
             public MeshFilter MeshFilter;
@@ -551,7 +298,260 @@ namespace GeoTetra.GTAvaUtil
             
             AssetDatabase.SaveAssets();
         }
+        
+        [MenuItem("Tools/GeoTetra/GTAvaUtil/Transfer SkinnedMeshRenderer Bones To Another SkinnedMeshRenderer...", false)]
+        static void SetBonesTo(MenuCommand command)
+        {
+            void ErrorDialogue()
+            {
+                EditorUtility.DisplayDialog("Select two SkinnedMeshRenderers.",
+                    "Select the SkinnedMeshRender you want to transfer bones from, then the SkinnedMeshRenderer you wan to transfer bones to.",
+                    "Ok");
+            }
             
+            if (Selection.objects.Length != 2)
+            {
+                ErrorDialogue();
+                return;
+            }
+
+            SkinnedMeshRenderer sourceRenderer = (Selection.objects[0] as GameObject).GetComponent<SkinnedMeshRenderer>();
+            SkinnedMeshRenderer destinationRenderer = (Selection.objects[1] as GameObject).GetComponent<SkinnedMeshRenderer>();
+            if (sourceRenderer == null || destinationRenderer == null)
+            {
+                ErrorDialogue();
+                return;
+            }
+
+            Dictionary<string, Transform> sourceBones = new Dictionary<string, Transform>();
+            foreach (var bone in sourceRenderer.bones)
+            {
+                sourceBones.Add(bone.name, bone);
+            }
+            
+            Matrix4x4[] newBindPoses = new Matrix4x4[destinationRenderer.bones.Length];
+            Transform[] newBones = new Transform[destinationRenderer.bones.Length];
+            for (int i = 0; i < destinationRenderer.bones.Length; ++i)
+            {
+                var destinationBone = destinationRenderer.bones[i];
+                if (sourceBones.TryGetValue(destinationBone.name, out var newBone))
+                {
+                    newBones[i] = newBone;
+                    newBindPoses[i] = newBone.worldToLocalMatrix * destinationRenderer.localToWorldMatrix;
+                }
+                else
+                {
+                    EditorUtility.DisplayDialog($"Couldn't find bone {destinationBone.name}!",
+                        "In order to transfer bones, every bone in the new SkinnnedMeshRender must also be in the prior SkinnedMeshRender and named the same.",
+                        "Ok");
+                    return;
+                }
+            }
+            
+            Mesh newDestinationMesh = MonoBehaviour.Instantiate(destinationRenderer.sharedMesh);
+            newDestinationMesh.bindposes = newBindPoses;
+            string oldMeshPath = AssetDatabase.GetAssetPath(destinationRenderer.sharedMesh);
+            var encryptedMeshPath = GetModifiedMeshPath(oldMeshPath, destinationRenderer.sharedMesh.name, "TransferredBones");
+            AssetDatabase.CreateAsset(newDestinationMesh, encryptedMeshPath);
+            AssetDatabase.SaveAssets();
+
+            var newDestinationRenderer  = MonoBehaviour.Instantiate(destinationRenderer);
+            Undo.RegisterCreatedObjectUndo(newDestinationRenderer.gameObject, "Transferred Bones.");
+            newDestinationRenderer.bones = newBones;
+            newDestinationRenderer.rootBone = sourceRenderer.rootBone;
+            newDestinationRenderer.sharedMesh = newDestinationMesh;
+            newDestinationRenderer.transform.SetParent(sourceRenderer.transform.parent, false);
+            EditorCoroutineUtility.StartCoroutine(RecalculateSkinnedMeshBoundsCoroutine(newDestinationRenderer), newDestinationRenderer);
+        }
+        
+        [MenuItem("Tools/GeoTetra/GTAvaUtil/Add Probe Anchor From Averaged Mesh Positions...", false)]
+        static void AddProbeAtAveragedMeshPositions(MenuCommand command)
+        {
+            void ErrorDialogue()
+            {
+                EditorUtility.DisplayDialog("Insufficient Selection!",
+                    "Must select multiple SkinnedMeshRenderer's.",
+                    "Ok");
+            }
+            
+            if (Selection.objects.Length < 2)
+            {
+                ErrorDialogue();
+                return;
+            }
+
+            List<SkinnedMeshRenderer> skinnedMeshRenderers = new List<SkinnedMeshRenderer>();
+            List<MeshRenderer> meshRenderers = new List<MeshRenderer>();
+            foreach (var selectedObject in Selection.objects)
+            {
+                if (selectedObject is GameObject selectedGameObject)
+                {
+                    SkinnedMeshRenderer skinnedMeshRenderer = selectedGameObject.GetComponent<SkinnedMeshRenderer>();
+                    if (skinnedMeshRenderer != null)
+                    {
+                        skinnedMeshRenderers.Add(skinnedMeshRenderer);
+                        continue;
+                    }
+                    
+                    MeshRenderer renderer = selectedGameObject.GetComponent<MeshRenderer>();
+                    if (renderer != null)
+                    {
+                        meshRenderers.Add(renderer);
+                    }
+                }
+            }
+
+            if (skinnedMeshRenderers.Count + meshRenderers.Count < 2)
+            {
+                ErrorDialogue();
+                return;
+            }
+
+            Renderer firstRender;
+            if (skinnedMeshRenderers.Count > 0)
+                firstRender = skinnedMeshRenderers[0];
+            else
+                firstRender = meshRenderers[0];
+            
+            Bounds worldBounds = new Bounds(firstRender.transform.position, Vector3.zero);
+            foreach (var renderer in skinnedMeshRenderers)
+            {
+                worldBounds.Encapsulate(renderer.bounds);
+            }
+            foreach (var renderer in meshRenderers)
+            {
+                worldBounds.Encapsulate(renderer.bounds);
+            }
+            
+            GameObject anchorGameObject = new GameObject("ProbeAnchor");
+            anchorGameObject.transform.SetParent(firstRender.transform.root);
+            anchorGameObject.transform.position = worldBounds.center;
+            
+            foreach (var renderer in skinnedMeshRenderers)
+            {
+                renderer.probeAnchor = anchorGameObject.transform;
+            }
+            foreach (var renderer in meshRenderers)
+            {
+                renderer.probeAnchor = anchorGameObject.transform;
+            }
+        }
+        
+        [MenuItem("Tools/GeoTetra/GTAvaUtil/Recalculate SkinnedMeshRenderer Bounds...", false)]
+        static void RecalculateSkinnedMeshBounds(MenuCommand command)
+        {
+            void ErrorDialogue()
+            {
+                EditorUtility.DisplayDialog("Insufficient Selection!",
+                    "Must Select SkinnedMeshRenderers.",
+                    "Ok");
+            }
+            
+            if (Selection.objects.Length == 0)
+            {
+                ErrorDialogue();
+                return;
+            }
+            
+            foreach (var selectedObject in Selection.objects)
+            {
+                if (selectedObject is GameObject selectedGameObject)
+                {
+                    SkinnedMeshRenderer renderer = selectedGameObject.GetComponent<SkinnedMeshRenderer>();
+                    if (renderer != null)
+                    {
+                        EditorCoroutineUtility.StartCoroutine(RecalculateSkinnedMeshBoundsCoroutine(renderer), renderer);
+                    }
+                }
+            }
+        }
+
+        [MenuItem("Tools/GeoTetra/GTAvaUtil/Bake SkinnedMeshRenderer To MeshRenderer...", false)]
+        static void BakeSkinnedMesh(MenuCommand command)
+        {
+            void ErrorDialogue()
+            {
+                EditorUtility.DisplayDialog("Insufficient Selection!",
+                    "Select SkinnedMeshRenders to bake.",
+                    "Ok");
+            }
+
+            if (Selection.objects.Length == 0)
+            {
+                ErrorDialogue();
+                return;
+            }
+
+            int processedCount = 0;
+            foreach (var selectedObject in Selection.objects)
+            {
+                if (selectedObject is GameObject selectedGameObject)
+                {
+                    SkinnedMeshRenderer sourceRenderer = selectedGameObject.GetComponent<SkinnedMeshRenderer>();
+                    if (sourceRenderer == null)
+                    {
+                        continue;
+                    }
+
+                    Mesh bakedMesh = new Mesh();
+                    sourceRenderer.BakeMesh(bakedMesh);
+                    string oldMeshPath = AssetDatabase.GetAssetPath(sourceRenderer.sharedMesh);
+                    var encryptedMeshPath = GetModifiedMeshPath(oldMeshPath, sourceRenderer.sharedMesh.name, "BakedSkinnedMesh");
+                    AssetDatabase.CreateAsset(bakedMesh, encryptedMeshPath);
+                    AssetDatabase.SaveAssets();
+
+                    GameObject gameObject = new GameObject(Path.GetFileNameWithoutExtension(encryptedMeshPath));
+                    gameObject.AddComponent<MeshFilter>().sharedMesh = bakedMesh;
+                    gameObject.AddComponent<MeshRenderer>().sharedMaterials = sourceRenderer.sharedMaterials;
+                    gameObject.transform.position = sourceRenderer.transform.position;
+                    gameObject.transform.rotation = sourceRenderer.transform.rotation;
+                    Undo.RegisterCreatedObjectUndo(gameObject, "Baked SkinnedMeshRenderer");
+
+                    processedCount++;
+                }
+            }
+
+            if (processedCount == 0)
+            {
+                ErrorDialogue();
+            }
+        }
+
+        [MenuItem("Tools/GeoTetra/GTAvaUtil/Transfer Mesh Colors...", false)]
+        static void TransferColors(MenuCommand command)
+        {
+            void ErrorDialogue()
+            {
+                EditorUtility.DisplayDialog("Insufficient Selection!",
+                    "Must Select Bake MeshFilter first, then SkinnedMeshRenderer.",
+                    "Ok");
+            }
+            
+            if (Selection.objects.Length != 2)
+            {
+                ErrorDialogue();
+                return;
+            }
+
+            MeshFilter sourceFilter = (Selection.objects[0] as GameObject).GetComponent<MeshFilter>();
+            SkinnedMeshRenderer destinationRenderer = (Selection.objects[1] as GameObject).GetComponent<SkinnedMeshRenderer>();
+            if (sourceFilter == null || destinationRenderer == null)
+            {
+                ErrorDialogue();
+                return;
+            }
+            
+            Mesh newDestinationMesh = MonoBehaviour.Instantiate(destinationRenderer.sharedMesh);
+            newDestinationMesh.SetColors(sourceFilter.sharedMesh.colors);
+            string oldMeshPath = AssetDatabase.GetAssetPath(destinationRenderer.sharedMesh);
+            var encryptedMeshPath = GetModifiedMeshPath(oldMeshPath, sourceFilter.sharedMesh.name,"TransferredVertexColors");
+            AssetDatabase.CreateAsset(newDestinationMesh, encryptedMeshPath);
+            AssetDatabase.SaveAssets();
+            
+            Undo.RecordObject(destinationRenderer, "Transfer Mesh Colors...");
+            destinationRenderer.sharedMesh = newDestinationMesh;
+        }
+
         [MenuItem("Tools/GeoTetra/GTAvaUtil/Check for Update...", false)]
         static void CheckForUpdate()
         {
