@@ -12,9 +12,9 @@ namespace GeoTetra.GTAvaUtil
 
         MeshFilter m_MeshFilter;
         float _AngleMin = .2f;
-        float _AngleMax = .99f;
-        int _HeightSteps = 8;
-        int _RotationSteps = 8;
+        float _AngleMax = .8f;
+        int _HeightSteps = 10;
+        int _RotationSteps = 10;
         float _SurfaceOffset = float.Epsilon;
 
         ComputeBuffer m_VerticesBuffer;
@@ -89,11 +89,11 @@ namespace GeoTetra.GTAvaUtil
             m_ComputeShader.SetMatrix("unity_WorldToObject", m_MeshFilter.transform.worldToLocalMatrix);
             m_ComputeShader.SetFloat("_SurfaceOffset", _SurfaceOffset);
 
-            Color[] colorArray = new Color[m_Vertices.Length];
-            float[] aoArray = new float[m_Vertices.Length];
-            float aoSampleCount = 0;
+            var colorArray = new Color[m_Vertices.Length];
+            var aoArray = new float[m_Vertices.Length];
+            var aoSampleCount = 0;
 
-            int count = 0;
+            var count = 0;
             for (int h = 0; h < _HeightSteps; ++h)
             {
                 float heightAngle = Mathf.Lerp(_AngleMin, _AngleMax, (1f / _HeightSteps) * h);
@@ -103,20 +103,20 @@ namespace GeoTetra.GTAvaUtil
                 {
                     count++;
 
-                    float yAngle = (1f / _RotationSteps) * r;
+                    var yAngle = (1f / _RotationSteps) * r;
                     m_ComputeShader.SetFloat("_YAngle", yAngle);
 
-                    int vertThreadGroups = Mathf.CeilToInt((float)m_Vertices.Length / 64f);
+                    var vertThreadGroups = Mathf.CeilToInt((float)m_Vertices.Length / 64f);
                     m_ComputeShader.Dispatch(m_BruteAOVertBakeKernel, vertThreadGroups, 1, 1);
 
                     m_AOVertsBuffer.GetData(aoArray);
 
                     for (int i = 0; i < m_Vertices.Length; ++i)
                     {
-                        // rolling average
-                        colorArray[i].r = ((colorArray[i].r * (count - 1)) + aoArray[i]) / count;
-                        colorArray[i].g = ((colorArray[i].g * (count - 1)) + aoArray[i]) / count;
-                        colorArray[i].b = ((colorArray[i].b * (count - 1)) + aoArray[i]) / count;
+                        var rollingAverage = ((colorArray[i].r * (count - 1)) + aoArray[i]) / count;
+                        colorArray[i].r = rollingAverage;
+                        colorArray[i].g = rollingAverage;
+                        colorArray[i].b = rollingAverage;
                         colorArray[i].a = 1;
                     }
 

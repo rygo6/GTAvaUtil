@@ -47,6 +47,7 @@ float intersect(float3 orig, float3 dir, float3 v0, float3 v1, float3 v2)
 float bruteTrace(float3 rayOrigin, float3 rayDirection)
 {
     float currentT = INFINITY_FLOAT;
+    bool hit = false;
     
     for (int i = 0; i < _IndicesLength; i += 3)
     {
@@ -66,10 +67,12 @@ float bruteTrace(float3 rayOrigin, float3 rayDirection)
         if (newT > 0 && newT < currentT) 
         {
             currentT = newT;
+            hit = true;
         }
     }
     
-    return currentT;
+    // return currentT;
+    return !hit;
 }
 
 inline float3 UnityObjectToWorldNormal( in float3 norm )
@@ -105,8 +108,9 @@ void BruteAOVertBake(uint3 id : SV_DispatchThreadID)
     for (int d = 0; d < sideDirectionCount; ++d)
     {
         float3 direction = lerp(worldNormal, sideDirections[d], _HeightAngle);
-        dist += bruteTrace(worldVertex + (direction * _SurfaceOffset),  direction) / sideDirectionCount;
+        dist += bruteTrace(worldVertex + (direction * _SurfaceOffset),  direction);
     }
+    dist /= sideDirectionCount;
 
     _aoVertDist[id.x] = dist;
 }
