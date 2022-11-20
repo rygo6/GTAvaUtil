@@ -241,6 +241,7 @@ namespace GeoTetra.GTAvaUtil
 
                 var newDestinationMesh = Object.Instantiate(sourceMesh);
                 newDestinationMesh.SetColors(combinedColors.ToArray());
+                newDestinationMesh.UploadMeshData(false);
                 
                 try
                 {
@@ -436,6 +437,7 @@ namespace GeoTetra.GTAvaUtil
             
             Mesh newDestinationMesh = MonoBehaviour.Instantiate(destinationRenderer.sharedMesh);
             newDestinationMesh.bindposes = newBindPoses;
+            newDestinationMesh.UploadMeshData(false);
             string oldMeshPath = AssetDatabase.GetAssetPath(destinationRenderer.sharedMesh);
             var encryptedMeshPath = GetModifiedMeshPath(oldMeshPath, destinationRenderer.sharedMesh.name, "TransferredBones");
             AssetDatabase.CreateAsset(newDestinationMesh, encryptedMeshPath);
@@ -674,7 +676,7 @@ namespace GeoTetra.GTAvaUtil
             string[] splitFileName = filename.Split('_');
             string[] splitMeshName = meshName.Split('_');
             string finalMeshName = splitMeshName.Length == 1 ? splitMeshName[0] : splitMeshName[1];
-            return $"{Path.Combine(Path.GetDirectoryName(path), splitFileName[0])}_{finalMeshName}_{appendText}.asset";
+            return $"{Path.Combine(Path.GetDirectoryName(path), splitFileName[0])}_{finalMeshName}_{appendText}.mesh";
         }
     }
 }
