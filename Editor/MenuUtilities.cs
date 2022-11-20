@@ -25,7 +25,7 @@ namespace GeoTetra.GTAvaUtil
             public readonly List<SubMeshDescriptor> SubMeshDescriptors = new List<SubMeshDescriptor>();
             public readonly List<Material> BakeMaterials = new List<Material>();
         }
-        
+
         [MenuItem("Tools/GeoTetra/GTAvaUtil/Bake Vertex AO On Selected...", false)]
         static void BakeVertexAOOnCombinedMeshes(MenuCommand command)
         {
@@ -638,6 +638,26 @@ namespace GeoTetra.GTAvaUtil
             
             Undo.RecordObject(destinationRenderer, "Transfer Mesh Colors...");
             destinationRenderer.sharedMesh = newDestinationMesh;
+        }
+        
+        [MenuItem("Tools/GeoTetra/GTAvaUtil/IsReadable...", false)]
+        static void IsReadable(MenuCommand command)
+        {
+            var renderers = (((GameObject)Selection.objects[0]).GetComponentsInChildren<Renderer>());
+            foreach (var renderer in renderers)
+            {
+                if (renderer is MeshRenderer meshRenderer)
+                {
+                    var mesh = meshRenderer.GetComponent<MeshFilter>().sharedMesh;
+                    Debug.Log($"{renderer.name} {mesh.name} {mesh.isReadable}");
+                }
+                
+                else if (renderer is SkinnedMeshRenderer skinnedMeshRenderer)
+                {
+                    var mesh = skinnedMeshRenderer.sharedMesh;
+                    Debug.Log($"{skinnedMeshRenderer.name} {mesh.name} {mesh.isReadable}");
+                }
+            }
         }
 
         [MenuItem("Tools/GeoTetra/GTAvaUtil/Check for Update...", false)]

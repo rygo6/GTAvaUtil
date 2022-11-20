@@ -97,3 +97,11 @@ This will let you transfer the vertex colors from a static mesh onto a SkinnedMe
 1. Select the MeshFilter you want to transfer colors from.
 2. Select the SkinnedMeshRenderer you want to transfer the colors to.
 3. Click `Tools > GeoTetra > GTAvaUtil > Transfer Mesh Colors...`.
+4. 
+### IsReadable...
+
+Tells you the isReadable state of every mesh in your avatar. If VRC is complaing you have meshes with read/write disabled you can use this to determine which ones.
+
+1. Select the root GameObject of your avatar.
+2. Click `Tools > GeoTetra > GTAvaUtil > IsReadable...`.
+3. Look in console for output.
