@@ -17,18 +17,29 @@ Join the GeoTetra Discord for support or suggestions about more avatar utilities
 
 All utilities are currently under the `Tools > GeoTetra > GTAvaUtil` menu at the top of the Unity Editor. Currently there are only a handful of utility methods.
 
-### Bake Vertex AO On Combined MeshRenders+MeshFilters and Apply to Vertex Color...
+### Bake Vertex AO On Selected...
 
-This will let you bake down Ambient Occlusion on an entire avatar to the vertex colors. This applies certain smoothing parameters as well to give you a very smooth, averaged, ambient occlusion effect. Generally find it superior to what you would get from Ambient Occlusion texture baking in blender, which can be too precise and look odd on avatars with so many moving parts.
+This will let you bake down Ambient Occlusion on an entire avatar to the RGB vertex colors. This applies certain smoothing parameters as well to give you a very smooth, averaged, ambient occlusion effect. Generally find it superior to what you would get from Ambient Occlusion texture baking in blender, which can be too precise and look odd on avatars with so many moving parts.
 
 1. I would suggest posing your avatar into an A pose with its legs spread so the AO shades the under arms and in between the legs better. I would also fully activate the 'aa' blendshape so the mouth is open and AO get inside the mouth.
-2. Select all the SkinnedMeshRenderers and MeshFilters you wish to bake AO onto. It is necessary to select them all and bake them all at once so they occlude each other. Objects not in the selection will not contribute to the occlusion.
-3. Click `Tools > GeoTetra > GTAvaUtil > Bake Vertex AO On Combined MeshRenders+MeshFilters and Apply to Vertex Color...`.
+2. Ctrl+Click to select all the GameObjects with SkinnedMeshRenderers and MeshFilters you wish to bake AO onto. It is necessary to select them all and bake them all at once so they occlude each other. Objects not in the selection will not contribute to the occlusion.
+3. Click `Tools > GeoTetra > GTAvaUtil > Bake Vertex AO On Selected...`.
 4. Wait for baking to finish. It applies the baked colors to the vertex colors of the mesh, saves a new mesh for each, and applies those back to the original SkinnedMeshRenderers and MeshFilters.
 
 You can selectively run `Average Vertex Colors On SkinnedMeshRenders or MeshFilters...` on specific meshes to smooth things out further.
 
+Your shader must utilize vertex colors in some way for the result to be visible. This data can be used by the [GTAvaToon](https://github.com/rygo6/GTAvaToon) shader to add Ambient Occlusion to your avatar.
+
 ![BakeAO](Media~/BakeAO.gif)
+
+### Bake Vertex Visibility Onto First Selected...
+
+This will bake onto the first selected GameObject the occlusion of subsequently selected GameObject's. It will store this in the alpha channel of the vertex color. The purpose of this is to enable a shader to discard vertices that are not fully visible. You can use this to keep your avatar's body from clipping through the clothes. The [GTAvaToon](https://github.com/rygo6/GTAvaToon) shader supports this via the `Discard Vertex AO Darkness Threshold`slider.
+
+1. Select the GameObject with SkinnedMeshRenderer or MeshFilter you want to bake the vertex visibility data onto. This would probably be your avatar's body.
+2. Ctrl+Click to select all subsequent GameObjects with SkinnedMeshRenderers and MeshFilters you want to contribute to occlusion. This would probably be your avatar's clothes.
+3. Click `Tools > GeoTetra > GTAvaUtil > Bake Vertex Visibility Onto First Selected...`.
+4. Wait for baking to finish. Your avatars shader must know how to use this data for it do anything. The [GTAvaToon](https://github.com/rygo6/GTAvaToon) shader can use this data to discard vertices via the `Discard Vertex AO Darkness Threshold` slider.
 
 ### Average Vertex Colors On SkinnedMeshRenders or MeshFilters...
 

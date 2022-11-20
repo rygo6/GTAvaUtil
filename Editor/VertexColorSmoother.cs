@@ -30,6 +30,8 @@ namespace GeoTetra.GTAvaUtil
         JobHandle m_CalculateOverlappingVertsJobHandle;
         JobHandle m_AverageVertexColorsJobHandle;
 
+        bool m_OnlySmoothAlpha;
+
         [Serializable]
         public struct SubMesh
         {
@@ -48,8 +50,9 @@ namespace GeoTetra.GTAvaUtil
             }
         }
 
-        public VertexColorSmoother(Mesh mesh)
+        public VertexColorSmoother(Mesh mesh, bool onlySmoothAlpha)
         {
+            m_OnlySmoothAlpha = onlySmoothAlpha;
             m_Mesh = mesh;
 
             if (m_Mesh == null)
@@ -239,11 +242,19 @@ namespace GeoTetra.GTAvaUtil
             yield return new WaitUntil(() => m_AverageVertexColorsJobHandle.IsCompleted);
             m_AverageVertexColorsJobHandle.Complete();
 
-            var newColors = new Color[m_Mesh.vertexCount];
+            var newColors = m_Mesh.colors;
             for (int i = 0; i < newColors.Length; ++i)
             {
-                newColors[i] = m_WriteColors[i];
-                m_ReadColors[i] = m_WriteColors[i];
+                if (m_OnlySmoothAlpha)
+                {
+                    newColors[i].a = m_WriteColors[i].a;
+                }
+                else 
+                {
+                    newColors[i].r = m_WriteColors[i].r;
+                    newColors[i].g = m_WriteColors[i].g;
+                    newColors[i].b = m_WriteColors[i].b;
+                }
             }
             
             m_Mesh.colors = newColors;

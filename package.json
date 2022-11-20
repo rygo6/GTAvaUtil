@@ -1,7 +1,7 @@
 {
   "name": "com.geotetra.gtavautil",
   "displayName":"GTAvaUtil",
-  "version": "1.0.6",
+  "version": "1.1.0",
   "unity": "2019.4",
   "keywords": ["editor", "vrchat"],
   "description": "Throwbag of utilities for VRChat Avatars.",

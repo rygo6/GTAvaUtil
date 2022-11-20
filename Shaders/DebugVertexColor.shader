@@ -1,10 +1,13 @@
 Shader "GeoTetra/GTAvaUtil/DebugVertexColor"
 {
     Properties
-    { }
+    {
+        _Color ("Diffuse Color", Color) = (1, 1, 1, 1)
+    }
     SubShader
     {
-        Tags { "RenderType"="Opaque" }
+        Tags{ "RenderType"="Transparent" "Queue"="Transparent"}
+        Blend SrcAlpha OneMinusSrcAlpha
 
         Pass
         {
@@ -26,11 +29,13 @@ Shader "GeoTetra/GTAvaUtil/DebugVertexColor"
                 float4 color : COLOR;
             };
 
+            float4 _Color;
+
             v2f vert (appdata v)
             {
                 v2f o;
                 o.vertex = UnityObjectToClipPos(v.vertex);
-                o.color = v.color;
+                o.color = v.color * _Color;
                 return o;
             }
 

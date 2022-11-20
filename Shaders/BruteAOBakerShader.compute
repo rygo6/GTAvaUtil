@@ -1,10 +1,12 @@
-StructuredBuffer<float3> _vertices;
-StructuredBuffer<float3> _normals;
-StructuredBuffer<float4> _tangents;
-StructuredBuffer<int> _indices;
-RWStructuredBuffer<float> _aoVertDist;
+StructuredBuffer<float3> _TargetVertices;
+StructuredBuffer<int> _TargetIndices;
+int _TargetIndicesLength;
+
+StructuredBuffer<float3> _Vertices;
+StructuredBuffer<float3> _Normals;
+StructuredBuffer<float4> _Tangents;
+RWStructuredBuffer<float> _AoVertDist;
 int _VertLength;
-int _IndicesLength;
 float4x4 unity_ObjectToWorld;
 float4x4 unity_WorldToObject;
 float _HeightAngle;
@@ -49,15 +51,15 @@ float bruteTrace(float3 rayOrigin, float3 rayDirection)
     float currentT = INFINITY_FLOAT;
     bool hit = false;
     
-    for (int i = 0; i < _IndicesLength; i += 3)
+    for (int i = 0; i < _TargetIndicesLength; i += 3)
     {
-        int ia = _indices[i];
-        int ib = _indices[i + 1];
-        int ic = _indices[i + 2];
+        int ia = _TargetIndices[i];
+        int ib = _TargetIndices[i + 1];
+        int ic = _TargetIndices[i + 2];
         
-        float3 a = _vertices[ia];
-        float3 b = _vertices[ib];
-        float3 c = _vertices[ic];
+        float3 a = _TargetVertices[ia];
+        float3 b = _TargetVertices[ib];
+        float3 c = _TargetVertices[ic];
 
         float3 wA = mul(unity_ObjectToWorld, float4( a, 1.0 ) ).xyz;
         float3 wB = mul(unity_ObjectToWorld, float4( b, 1.0 ) ).xyz;
@@ -86,9 +88,9 @@ void BruteAOVertBake(uint3 id : SV_DispatchThreadID)
 {
     if (id.x > _VertLength) return;
     
-    const float3 worldVertex = mul(unity_ObjectToWorld, float4( _vertices[id.x], 1.0 ) ).xyz;
-    const float3 worldNormal = UnityObjectToWorldNormal(_normals[id.x]);
-    const float3 worldTangent = UnityObjectToWorldNormal(_tangents[id.x].xyz);
+    const float3 worldVertex = mul(unity_ObjectToWorld, float4( _Vertices[id.x], 1.0 ) ).xyz;
+    const float3 worldNormal = UnityObjectToWorldNormal(_Normals[id.x]);
+    const float3 worldTangent = UnityObjectToWorldNormal(_Tangents[id.x].xyz);
                 
     const float3 right = worldTangent;
     const float3 up = cross(worldNormal, worldTangent);
@@ -112,5 +114,5 @@ void BruteAOVertBake(uint3 id : SV_DispatchThreadID)
     }
     dist /= sideDirectionCount;
 
-    _aoVertDist[id.x] = dist;
+    _AoVertDist[id.x] = dist;
 }

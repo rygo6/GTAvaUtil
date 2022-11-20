@@ -26,7 +26,7 @@ namespace GeoTetra.GTAvaUtil
             public readonly List<Material> BakeMaterials = new List<Material>();
         }
         
-        [MenuItem("Tools/GeoTetra/GTAvaUtil/Bake Vertex AO On Combined MeshRenders+MeshFilters and Apply to Vertex Color...", false)]
+        [MenuItem("Tools/GeoTetra/GTAvaUtil/Bake Vertex AO On Selected...", false)]
         static void BakeVertexAOOnCombinedMeshes(MenuCommand command)
         {
             void ErrorDialogue()
@@ -41,12 +41,94 @@ namespace GeoTetra.GTAvaUtil
                 ErrorDialogue();
                 return;
             }
-            
-            var combine = new List<CombineInstance>();
-            var bakeApplyMeshes = new List<BakeApplyMesh>();
-            var materials = new List<Material>();
 
-            foreach (var selectedObject in Selection.objects)
+            CombineMeshesFromObjects(Selection.objects, out var combine, out var bakeApplyMeshes, out var materials);
+
+            if (combine.Count == 0)
+            {
+                ErrorDialogue();
+                return;
+            }
+
+            GameObject gameObject = new GameObject("BakedAOCombinedMesh (Can Delete, only for debug)");
+            MeshRenderer renderer = gameObject.AddComponent<MeshRenderer>();
+            renderer.sharedMaterials = materials.ToArray();
+            MeshFilter filter = gameObject.AddComponent<MeshFilter>();
+            filter.sharedMesh = new Mesh();
+            filter.sharedMesh.CombineMeshes(combine.ToArray(), false, true, false);
+            
+            EditorCoroutineUtility.StartCoroutine(BakeVertexAOOnCombinedMeshesCoroutine(filter, bakeApplyMeshes,null, null,false), filter);
+        }
+        
+        [MenuItem("Tools/GeoTetra/GTAvaUtil/Bake Vertex Visibility Onto First Selected...", false)]
+        static void BakeVertexVisibilityOntoFirstSelected(MenuCommand command)
+        {
+            void ErrorDialogue()
+            {
+                EditorUtility.DisplayDialog("Insufficient Selection!",
+                    "Must Select First GameObject with MeshFilter or SkinnedMeshRenderer to bake onto. Then subsequent GameObjects with MeshFilter or SkinnnerMeshRenderer to bake form.",
+                    "Ok");
+            }
+            
+            if (Selection.objects.Length <= 1)
+            {
+                ErrorDialogue();
+                return;
+            }
+
+            var firstSelection = new[] { Selection.objects[0] };
+            CombineMeshesFromObjects(firstSelection, out var combine, out var bakeApplyMeshes, out var materials);
+            
+            if (combine.Count == 0)
+            {
+                EditorUtility.DisplayDialog("Insufficient Selection!",
+                    "First Selected GameObject needs MeshFilter or SkinnedMeshRenderer.",
+                    "Ok");
+                return;
+            }
+            
+            // Yes I am combining only one mesh but I am leaving this open as I intend this to support multiples at some point
+            GameObject gameObject = new GameObject("Bake Vertex Visibility Onto (Can Delete, only for debug)");
+            MeshRenderer renderer = gameObject.AddComponent<MeshRenderer>();
+            renderer.sharedMaterials = materials.ToArray();
+            MeshFilter filter = gameObject.AddComponent<MeshFilter>();
+            filter.sharedMesh = new Mesh();
+            filter.sharedMesh.CombineMeshes(combine.ToArray(), false, true, false);
+
+            var fromSelection = new Object[Selection.objects.Length - 1];
+            for (int i = 0; i < fromSelection.Length; ++i)
+            {
+                fromSelection[i] = Selection.objects[i + 1];
+            }
+            CombineMeshesFromObjects(fromSelection, out var fromCombine, out var fromBakeApplyMeshes, out var fromMaterials);
+
+            if (fromCombine.Count == 0)
+            {
+                EditorUtility.DisplayDialog("Insufficient Selection!",
+                    "Selected GameObjects after first need MeshFilter or SkinnedMeshRenderer to bake from.",
+                    "Ok");
+                return;
+            }
+
+            GameObject fromGameObject = new GameObject("Bake Vertex Visibility from (Can Delete, only for debug)");
+            MeshRenderer fromRenderer = fromGameObject.AddComponent<MeshRenderer>();
+            foreach (var fromMaterial in fromMaterials)
+                fromMaterial.color = new Color(.5f, .5f, .5f, .5f);
+            fromRenderer.sharedMaterials = fromMaterials.ToArray();
+            MeshFilter fromFilter = fromGameObject.AddComponent<MeshFilter>();
+            fromFilter.sharedMesh = new Mesh();
+            fromFilter.sharedMesh.CombineMeshes(fromCombine.ToArray(), false, true, false);
+            
+            EditorCoroutineUtility.StartCoroutine(BakeVertexAOOnCombinedMeshesCoroutine(filter, bakeApplyMeshes, fromFilter, fromBakeApplyMeshes, true), fromFilter);
+        }
+
+        static void CombineMeshesFromObjects(Object[] objects, out List<CombineInstance> combine, out List<BakeApplyMesh> bakeApplyMeshes, out List<Material> materials)
+        {
+            combine = new List<CombineInstance>();
+            bakeApplyMeshes = new List<BakeApplyMesh>();
+            materials = new List<Material>();
+            
+            foreach (var selectedObject in objects)
             {
                 if (selectedObject is GameObject selectedGameObject)
                 {
@@ -111,41 +193,26 @@ namespace GeoTetra.GTAvaUtil
                     bakeApplyMeshes.Add(bakeApplyMesh);
                 }
             }
-
-            if (combine.Count == 0)
-            {
-                ErrorDialogue();
-                return;
-            }
-
-            GameObject gameObject = new GameObject("BakedAOCombinedMesh (Can Delete, only for debug)");
-            MeshRenderer renderer = gameObject.AddComponent<MeshRenderer>();
-            renderer.sharedMaterials = materials.ToArray();
-            MeshFilter filter = gameObject.AddComponent<MeshFilter>();
-            filter.sharedMesh = new Mesh();
-            filter.sharedMesh.CombineMeshes(combine.ToArray(), false, true, false);
-            
-            EditorCoroutineUtility.StartCoroutine(BakeVertexAOOnCombinedMeshesCoroutine(filter, renderer, bakeApplyMeshes), filter);
         }
         
-        static IEnumerator BakeVertexAOOnCombinedMeshesCoroutine(MeshFilter bakedMeshFilter, MeshRenderer renderer,  List<BakeApplyMesh> bakeApplyMeshes)
+        static IEnumerator BakeVertexAOOnCombinedMeshesCoroutine(MeshFilter bakedMeshFilter, List<BakeApplyMesh> bakeApplyMeshes, MeshFilter fromMeshFilter, List<BakeApplyMesh> fromApplyMeshes, bool bakeToAlpha)
         {
-            var baker = new BruteAOBaker(bakedMeshFilter);
+            var baker = new BruteAOBaker(bakedMeshFilter, fromMeshFilter, bakeToAlpha);
             yield return baker.RunCoroutine();
             baker.Dispose();
             
             yield return null;
             
-            VertexColorSmoother smoother = new VertexColorSmoother(bakedMeshFilter.sharedMesh);
+            VertexColorSmoother smoother = new VertexColorSmoother(bakedMeshFilter.sharedMesh, bakeToAlpha);
             yield return smoother.RunCoroutine();
             smoother.Dispose();
                 
             yield return null;
             
-            int submeshIndex = 0;
+            var submeshIndex = 0;
             foreach (var bakeApplyMesh in bakeApplyMeshes)
             {
-                List<Color> combinedColors = new List<Color>();
+                var combinedColors = new List<Color>();
                 
                 for (int i = 0; i < bakeApplyMesh.SubMeshDescriptors.Count; ++i)
                 {
@@ -168,9 +235,11 @@ namespace GeoTetra.GTAvaUtil
                     sourceMesh = bakeApplyMesh.MeshFilter.sharedMesh;
                 }
                 else
+                {
                     continue;
+                }
 
-                Mesh newDestinationMesh = Object.Instantiate(sourceMesh);
+                var newDestinationMesh = Object.Instantiate(sourceMesh);
                 newDestinationMesh.SetColors(combinedColors.ToArray());
                 
                 try
@@ -196,8 +265,25 @@ namespace GeoTetra.GTAvaUtil
                     bakeApplyMesh.MeshFilter.sharedMesh = newDestinationMesh;
                 }
             }
-            
+
+            if (fromApplyMeshes != null)
+            {
+                foreach (var fromApplyMesh in fromApplyMeshes)
+                {
+                    if (fromApplyMesh.SkinnedMeshRenderer != null)
+                    {
+                        fromApplyMesh.SkinnedMeshRenderer.gameObject.SetActive(true);
+                    }
+                    else if (fromApplyMesh.MeshFilter != null)
+                    {
+                        fromApplyMesh.MeshFilter.gameObject.SetActive(true);
+                    }
+                }
+            }
+
             Object.DestroyImmediate(bakedMeshFilter.gameObject);
+            if (fromMeshFilter != null)
+                Object.DestroyImmediate(fromMeshFilter.gameObject);
             
             AssetDatabase.SaveAssets();
         }
@@ -268,7 +354,7 @@ namespace GeoTetra.GTAvaUtil
                 Mesh newDestinationMesh = null;
                 newDestinationMesh = Object.Instantiate(sourceMesh);
                 
-                VertexColorSmoother smoother = new VertexColorSmoother(newDestinationMesh);
+                VertexColorSmoother smoother = new VertexColorSmoother(newDestinationMesh, false);
                 yield return smoother.RunCoroutine();
                 smoother.Dispose();
 
