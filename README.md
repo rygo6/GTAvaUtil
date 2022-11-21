@@ -100,7 +100,7 @@ This will let you transfer the vertex colors from a static mesh onto a SkinnedMe
 4. 
 ### IsReadable...
 
-Tells you the isReadable state of every mesh in your avatar. If VRC is complaing you have meshes with read/write disabled you can use this to determine which ones.
+Tells you the isReadable state of every mesh in your avatar. If VRC is complaining you have meshes with read/write disabled you can use this to determine which ones.
 
 1. Select the root GameObject of your avatar.
 2. Click `Tools > GeoTetra > GTAvaUtil > IsReadable...`.
