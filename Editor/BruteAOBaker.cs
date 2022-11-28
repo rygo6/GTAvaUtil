@@ -8,10 +8,10 @@ namespace GeoTetra.GTAvaUtil
 {
     public class BruteAOBaker : IDisposable
     {
-        float m_AngleMin = .2f;
-        float m_AngleMax = .8f;
-        int m_HeightSteps = 10;
-        int m_RotationSteps = 10;
+        float m_AngleMin = .15f;
+        float m_AngleMax = .95f;
+        int m_HeightSteps = 16;
+        int m_RotationSteps = 16;
         float m_SurfaceOffset = float.Epsilon;
         
         MeshFilter m_MeshFilter;
